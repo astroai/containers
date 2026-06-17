@@ -18,10 +18,6 @@ Home hygiene (shared CephFS)
   astroai-home-usage          disk breakdown under $HOME
   astroai-cache-prune --all-safe   clear pip/uv/pixi caches
 
-AI coding (webterm / vscode)
-  agent                       Cursor agent CLI (after first start)
-  astroai-update-ai           refresh agent in ~/.local
-
 Project workflow
   cd /scratch && git clone …  active code on SSD
   pixi install / uv sync      deps into project (not system image)

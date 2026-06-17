@@ -101,10 +101,6 @@ Pixi (or uv/pip) downloads CUDA user libraries into the project environment. No 
 | `astroai-env-list` | List saves under `~/.astroai/saves` |
 | `astroai-home-usage` | Disk breakdown under `$HOME` on `/arc` |
 | `astroai-cache-prune --all-safe` | Clear pip/uv/pixi package caches |
-| `astroai-install-ai` | Seed Cursor `agent` (auto on webterm/vscode start) |
-| `astroai-update-ai` | Refresh Cursor `agent` in `~/.local` |
-
-Legacy aliases: `install-ai-tools` → `astroai-install-ai`, `update-ai-tools` → `astroai-update-ai`.
 
 ## What is pre-installed (needs root)
 
@@ -194,22 +190,27 @@ astroai-env-save myproject --full --to /arc/projects/mygroup/env-saves/myproject
 
 ## AI coding tools
 
-**Default CLI: Cursor `agent`.** We do not bake in every AI CLI — they change often, bloat the image, and install cleanly into `~/.local`.
+The image does **not** ship AI CLIs — the landscape changes too fast to pin in a container. Install what you need into **`~/.local/bin` on `/arc`** (persistent per user). `PATH` already includes `~/.local/bin`.
 
-`webterm` and `vscode` seed `agent` on first start (only if missing). Installs land in **`~/.local/bin` on `/arc`**.
-
-```bash
-agent --help
-astroai-update-ai
-```
-
-Optional CLIs (user-installed):
+Examples (check each project's site for the current installer):
 
 ```bash
+# Cursor agent
+curl -fsS https://cursor.com/install | bash
+
+# Claude Code
+curl -fsSL https://claude.ai/install.sh | bash
+
+# OpenCode
 curl -fsSL https://opencode.ai/install | bash
+
+# Aider (uses uv already in the image)
+UV_TOOL_DIR="${HOME}/.local/share/uv/tools" \
+UV_TOOL_BIN_DIR="${HOME}/.local/bin" \
+uv tool install aider-chat
 ```
 
-`notebook` and `marimo` do not auto-install AI tools. Use `webterm` or `vscode` for agent-assisted coding.
+Each CLI needs its own API key or account. Re-run the installer when a tool publishes an update, or manage versions yourself under `~/.local`.
 
 ## Package managers
 
@@ -272,7 +273,7 @@ Skaha typically sets:
 | `git clone` SSH fails | Add your key to `~/.ssh` on `/arc`. |
 | GPU not visible | Did you pick a GPU node? Run `nvidia-smi`. |
 | `import torch` no CUDA | GPU node + `cuda-version` / GPU torch via pixi. |
-| `agent` not found | Open `webterm` or `vscode` once, or `astroai-update-ai`. |
+| AI CLI not found | Install into `~/.local/bin` (see AI coding tools in RUNTIME.md). |
 | pip build fails | Add compilers/libs with pixi, not system apt. |
 | `/arc` quota pressure | `astroai-home-usage`; `astroai-cache-prune --all-safe`. |
 | Jupyter 404 behind proxy | Notebook session must use port **8888** and `/skaha/startup.sh` — see [OPERATORS.md](OPERATORS.md). |

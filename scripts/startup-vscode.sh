@@ -2,7 +2,6 @@
 # OpenVSCode Server on port 5000.
 
 source /cadc/common-init.sh
-/opt/astroai/bin/astroai-install-ai.sh
 
 OPS=(
     --host 0.0.0.0

@@ -60,14 +60,11 @@ RUN mkdir -p /opt/astroai/{bin,cache,lib} /cadc \
     && chmod -R a+rwx /opt/astroai
 
 COPY scripts/lib/astroai-env-common.sh scripts/lib/skaha-proxy.sh /opt/astroai/lib/
-COPY scripts/astroai-install-ai.sh scripts/astroai-update-ai.sh \
-    scripts/astroai-env-save scripts/astroai-env-resume scripts/astroai-env-list \
+COPY scripts/astroai-env-save scripts/astroai-env-resume scripts/astroai-env-list \
     scripts/astroai-home-usage scripts/astroai-cache-prune \
     scripts/astroai-help.sh scripts/astroai-status.sh scripts/astroai-new.sh \
     /opt/astroai/bin/
 RUN chmod a+rx /opt/astroai/bin/* /opt/astroai/lib/* \
-    && ln -sf astroai-install-ai.sh /opt/astroai/bin/install-ai-tools.sh \
-    && ln -sf astroai-update-ai.sh /opt/astroai/bin/update-ai-tools.sh \
     && ln -sf astroai-help.sh /opt/astroai/bin/astroai-help \
     && ln -sf astroai-status.sh /opt/astroai/bin/astroai-status \
     && ln -sf astroai-new.sh /opt/astroai/bin/astroai-new
