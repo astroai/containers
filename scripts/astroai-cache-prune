@@ -1,0 +1,62 @@
+#!/bin/bash -e
+# Prune safe caches under ~/.cache and ~/.pixi (frees CephFS quota).
+
+PIP=0
+UV=0
+HF=0
+PIXI=0
+ALL=0
+
+usage() {
+    sed -n '2,8p' "$0"
+    echo "  --pip       clear PIP_CACHE_DIR"
+    echo "  --uv        run uv cache prune"
+    echo "  --hf        remove HF_HOME (re-download models)"
+    echo "  --pixi      remove PIXI_CACHE_DIR package cache (keeps envs)"
+    echo "  --all-safe  --pip --uv --pixi"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --pip) PIP=1; shift ;;
+        --uv) UV=1; shift ;;
+        --hf) HF=1; shift ;;
+        --pixi) PIXI=1; shift ;;
+        --all-safe) ALL=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
+    esac
+done
+
+if [[ "${ALL}" -eq 1 ]]; then
+    PIP=1; UV=1; PIXI=1
+fi
+
+if [[ "${PIP}" -eq 0 && "${UV}" -eq 0 && "${HF}" -eq 0 && "${PIXI}" -eq 0 ]]; then
+    usage
+    exit 1
+fi
+
+[[ -f /etc/profile.d/astroai.sh ]] && source /etc/profile.d/astroai.sh
+
+if [[ "${PIP}" -eq 1 && -d "${PIP_CACHE_DIR:-}" ]]; then
+    echo "Clearing ${PIP_CACHE_DIR}..."
+    rm -rf "${PIP_CACHE_DIR:?}"/*
+fi
+
+if [[ "${UV}" -eq 1 ]] && command -v uv >/dev/null; then
+    echo "Pruning uv cache..."
+    uv cache prune
+fi
+
+if [[ "${HF}" -eq 1 && -d "${HF_HOME:-}" ]]; then
+    echo "Removing ${HF_HOME}..."
+    rm -rf "${HF_HOME:?}"
+fi
+
+if [[ "${PIXI}" -eq 1 && -d "${PIXI_CACHE_DIR:-}" ]]; then
+    echo "Clearing pixi package cache ${PIXI_CACHE_DIR}..."
+    rm -rf "${PIXI_CACHE_DIR:?}"/*
+fi
+
+echo "Done. Check: astroai-home-usage"

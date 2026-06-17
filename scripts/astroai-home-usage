@@ -1,0 +1,40 @@
+#!/bin/bash -e
+# Show what is using space under $HOME on shared /arc (CephFS).
+
+echo "Home disk usage for ${USER} (${HOME})"
+echo "========================================"
+
+entries=(
+    ".cache:tool caches (uv, pip, HF, torch, …)"
+    ".pixi:pixi global envs and package cache"
+    ".local:user tools and data"
+    ".astroai:env save manifests"
+    ".config:application config"
+    ".ssh:SSH keys (keep small)"
+)
+
+total=0
+for entry in "${entries[@]}"; do
+    dir="${entry%%:*}"
+    label="${entry#*:}"
+    path="${HOME}/${dir}"
+    if [[ -e "${path}" ]]; then
+        bytes="$(du -sb "${path}" 2>/dev/null | awk '{print $1}')"
+        human="$(du -sh "${path}" 2>/dev/null | awk '{print $1}')"
+        printf "  %-10s %8s  %s\n" "${dir}" "${human}" "${label}"
+        total=$((total + bytes))
+    fi
+done
+
+echo ""
+echo "Other top-level entries:"
+du -sh "${HOME}"/* 2>/dev/null | grep -vE '/\.(cache|pixi|local|astroai|config|ssh)$' | head -10 || true
+
+echo ""
+total_h="$(numfmt --to=iec-i --suffix=B "${total}" 2>/dev/null || du -sh "${HOME}" | awk '{print $1}')"
+echo "Tracked profile dirs: ~${total_h}"
+echo ""
+echo "Keep $HOME lean on shared storage:"
+echo "  - code and active envs on /scratch"
+echo "  - lockfile saves via astroai-env-save (not full packs unless needed)"
+echo "  - prune caches: astroai-cache-prune --help"

@@ -1,0 +1,82 @@
+#!/bin/bash -e
+# Restore a saved pixi or uv environment onto /scratch (fast SSD).
+#
+# Usage:
+#   astroai-env-resume <name>
+#   astroai-env-resume <name> /scratch/myproject
+#   astroai-env-resume <name> --from /arc/projects/group/env-saves/mylab
+
+source /opt/astroai/lib/astroai-env-common.sh
+
+[[ -f /etc/profile.d/astroai.sh ]] && source /etc/profile.d/astroai.sh
+if [[ -n "${TMPDIR:-}" ]]; then
+    mkdir -p "${TMPDIR}"
+fi
+
+FROM_OVERRIDE=""
+NAME=""
+TARGET=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --from) FROM_OVERRIDE="$2"; shift 2 ;;
+        -h|--help)
+            sed -n '2,9p' "$0"
+            exit 0
+            ;;
+        *)
+            if [[ -z "${NAME}" ]]; then
+                NAME="$1"
+            else
+                TARGET="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+[[ -n "${NAME}" ]] || { echo "Usage: astroai-env-resume <name> [target-dir]" >&2; exit 1; }
+
+SAVE_DIR="${FROM_OVERRIDE:-$(astroai_save_root)/${NAME}}"
+
+[[ -f "${SAVE_DIR}/manifest.json" ]] || {
+    echo "Save not found: ${SAVE_DIR}" >&2
+    echo "List saves: astroai-env-list" >&2
+    exit 1
+}
+
+KIND="$(jq -r .kind "${SAVE_DIR}/manifest.json")"
+FULL="$(jq -r .full "${SAVE_DIR}/manifest.json")"
+TARGET="${TARGET:-/scratch/${NAME}}"
+
+mkdir -p "${TARGET}"
+
+for f in pixi.toml pixi.lock pyproject.toml uv.lock .python-version README.md; do
+    [[ -f "${SAVE_DIR}/${f}" ]] && cp -a "${SAVE_DIR}/${f}" "${TARGET}/"
+done
+
+cd "${TARGET}"
+
+if [[ "${FULL}" == "true" && -f "${SAVE_DIR}/env.tar.zst" ]]; then
+    echo "Extracting packed environment..."
+    zstd -d -c "${SAVE_DIR}/env.tar.zst" | tar -xf -
+    echo "Restored full pack in ${TARGET}"
+else
+    case "${KIND}" in
+        pixi)
+            command -v pixi >/dev/null || { echo "pixi not found" >&2; exit 1; }
+            pixi install
+            ;;
+        uv)
+            command -v uv >/dev/null || { echo "uv not found" >&2; exit 1; }
+            uv sync
+            ;;
+        *)
+            echo "Unknown kind: ${KIND}" >&2
+            exit 1
+            ;;
+    esac
+    echo "Rebuilt ${KIND} environment in ${TARGET}"
+fi
+
+echo "cd ${TARGET}"

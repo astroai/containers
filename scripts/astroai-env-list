@@ -1,0 +1,25 @@
+#!/bin/bash -e
+# List saved environment manifests under ~/.astroai/saves.
+
+source /opt/astroai/lib/astroai-env-common.sh
+
+ROOT="$(astroai_save_root)"
+
+echo "Personal saves: ${ROOT}"
+if [[ -d "${ROOT}" ]]; then
+    find "${ROOT}" -name manifest.json 2>/dev/null | while read -r m; do
+        dir="$(dirname "${m}")"
+        name="$(jq -r .name "${m}")"
+        kind="$(jq -r .kind "${m}")"
+        at="$(jq -r .saved_at "${m}")"
+        full="$(jq -r .full "${m}")"
+        sz="$(du -sh "${dir}" | awk '{print $1}')"
+        echo "  ${name}  ${kind}  ${at}  full=${full}  ${sz}  ${dir}"
+    done
+else
+    echo "  (none)"
+fi
+
+echo ""
+echo "Tip: team saves can live under /arc/projects/<group>/env-saves/"
+echo "     astroai-env-resume <name> --from /arc/projects/<group>/env-saves/<name>"

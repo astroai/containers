@@ -1,0 +1,94 @@
+#!/bin/bash -e
+# Save a pixi or uv project environment for later resume.
+#
+# Default: lightweight save (lockfiles + manifest only, a few KB on /arc).
+#   Rebuild the env on resume with pixi install / uv sync on /scratch.
+#
+# Usage:
+#   astroai-env-save [name]
+#   astroai-env-save mylab --full
+#   astroai-env-save mylab --to /arc/projects/group/env-saves/mylab
+
+source /opt/astroai/lib/astroai-env-common.sh
+
+[[ -f /etc/profile.d/astroai.sh ]] && source /etc/profile.d/astroai.sh
+
+FULL=0
+DEST_OVERRIDE=""
+NAME=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --full) FULL=1; shift ;;
+        --to) DEST_OVERRIDE="$2"; shift 2 ;;
+        -h|--help)
+            sed -n '2,12p' "$0"
+            exit 0
+            ;;
+        *)
+            NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+KIND="$(astroai_require_project)"
+NAME="${NAME:-$(basename "${PWD}")}"
+STAMP="$(astroai_timestamp)"
+astroai_ensure_save_root
+
+if [[ -n "${DEST_OVERRIDE}" ]]; then
+    SAVE_DIR="${DEST_OVERRIDE%/}"
+else
+    SAVE_DIR="$(astroai_save_root)/${NAME}"
+fi
+
+mkdir -p "${SAVE_DIR}"
+
+case "${KIND}" in
+    pixi)
+        cp -a pixi.toml "${SAVE_DIR}/"
+        [[ -f pixi.lock ]] && cp -a pixi.lock "${SAVE_DIR}/"
+        ;;
+    uv)
+        cp -a pyproject.toml "${SAVE_DIR}/"
+        [[ -f uv.lock ]] && cp -a uv.lock "${SAVE_DIR}/"
+        ;;
+esac
+
+for f in .python-version README.md; do
+    [[ -f "${f}" ]] && cp -a "${f}" "${SAVE_DIR}/" || true
+done
+
+if [[ "${PWD}" != /scratch/* && -d /scratch ]]; then
+    echo "Note: saving from ${PWD} — prefer /scratch for active projects." >&2
+fi
+
+MANIFEST="${SAVE_DIR}/manifest.json"
+jq -n \
+    --arg name "${NAME}" \
+    --arg kind "${KIND}" \
+    --arg saved_at "${STAMP}" \
+    --arg saved_from "${PWD}" \
+    --arg user "${USER}" \
+    --argjson full "${FULL}" \
+    '{name: $name, kind: $kind, saved_at: $saved_at, saved_from: $saved_from, user: $user, full: $full}' \
+    > "${MANIFEST}"
+
+if [[ "${FULL}" -eq 1 ]]; then
+    echo "Packing environment (can be large — prefer git + lockfile saves when possible)..."
+    case "${KIND}" in
+        pixi)
+            [[ -d .pixi ]] || { echo "No .pixi directory to pack." >&2; exit 1; }
+            tar -C . -cf - .pixi | zstd -T0 -o "${SAVE_DIR}/env.tar.zst"
+            ;;
+        uv)
+            [[ -d .venv ]] || { echo "No .venv directory to pack." >&2; exit 1; }
+            tar -C . -cf - .venv | zstd -T0 -o "${SAVE_DIR}/env.tar.zst"
+            ;;
+    esac
+fi
+
+du -sh "${SAVE_DIR}"
+echo "Saved ${KIND} environment '${NAME}' -> ${SAVE_DIR}"
+echo "Resume on /scratch: astroai-env-resume ${NAME}"
