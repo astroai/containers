@@ -1,6 +1,6 @@
 # Runtime usage
 
-How to work in AstroAI sessions on the [CANFAR Science Platform](https://www.canfar.net/science-portal). For building and publishing images, see [README.md](../README.md). Operators: [OPERATORS.md](OPERATORS.md).
+How to work in AstroAI sessions on the [CANFAR Science Platform](https://www.canfar.net/science-portal). Platform docs are built from [opencadc/canfar](https://github.com/opencadc/canfar) at [opencadc.github.io/canfar](https://opencadc.github.io/canfar/). For building and publishing images, see [README.md](../README.md). Operators: [OPERATORS.md](OPERATORS.md).
 
 ## First five minutes (quick feedback loop)
 
@@ -45,6 +45,7 @@ Launch the image you need from the Science Portal. **CPU and GPU use the same im
 | `/scratch` | Active repos, pixi projects, checkpoints | **Ephemeral** SSD (~4 days after session ends) |
 | `/arc/home/$USER` | Dotfiles, caches, AI tools in `~/.local` | Persistent |
 | `/arc/projects/<group>/` | Shared group data (ACL-controlled) | Persistent |
+| `/cvmfs/` | DRAC / Alliance software (read-only) | Persistent on nodes; lazy-mounted |
 
 On startup you land in **`/scratch`** (flat mount, not `/scratch/$USER`). Create a project folder there:
 
@@ -53,6 +54,35 @@ mkdir -p myproject && cd myproject
 ```
 
 **Back up work with git.** `/scratch` is wiped when the session ends.
+
+## Alliance software (CVMFS)
+
+CANFAR worker nodes mount **CVMFS** — a read-only software tree maintained by the [Digital Research Alliance of Canada](https://docs.alliancecan.ca/) (DRAC / Alliance; same stacks as Fir, Nibi, and other national clusters). It is available in **all** AstroAI sessions and complements the lean image: the container brings `uv`, `pixi`, and basics; CVMFS brings thousands of pre-built packages without bloating the image.
+
+**CANFAR guide** (from [opencadc/canfar](https://github.com/opencadc/canfar/blob/main/docs/platform/cvmfs.md)): [Software Repositories (CVMFS)](https://opencadc.github.io/canfar/platform/cvmfs/)
+
+```bash
+# 1. Enable the environment-module system
+source /cvmfs/soft.computecanada.ca/config/profile/bash.sh
+
+# 2. Search and load (examples)
+module avail python
+module load python/3.11
+module avail cfitsio
+module load cfitsio
+```
+
+`ls /cvmfs` alone may look empty — repositories mount **lazily** when you access a known path. Always start from `/cvmfs/soft.computecanada.ca/`.
+
+| Approach | Good for |
+|----------|----------|
+| **pixi / uv** on `/scratch` | Project-pinned Python stacks, GPU PyTorch, fast iteration, git-tracked deps |
+| **CVMFS `module load`** | Alliance-built compilers, libraries, and apps already in the national stack |
+| **Image (`apt` / system `uv`)** | Session baseline only — JupyterLab, marimo, shell tooling |
+
+You cannot `pip install` or write into `/cvmfs`. Module changes last for the current shell unless you add the `source` and `module load` lines to `~/.bashrc` on `/arc`.
+
+**More from Alliance docs:** [Using modules](https://docs.alliancecan.ca/wiki/Using_modules) · [Available software](https://docs.alliancecan.ca/wiki/Available_software)
 
 ## Typical workflow
 
@@ -116,12 +146,13 @@ The image keeps a small **apt** layer: platform essentials and monitoring tools 
 | `less`, `file`, `vim-tiny` | Logs and quick edits |
 | `acl` | CANFAR `/arc` file permissions |
 
-**Not in the image:** `node`/`npm`, `build-essential`, `cmake`, Fortran, CUDA libs, Astropy, PyTorch, etc.
+**Not in the image:** `node`/`npm`, `build-essential`, `cmake`, Fortran, CUDA libs, Astropy, PyTorch, etc. Many of these are available via **CVMFS** (`module load`) — see [Alliance software (CVMFS)](#alliance-software-cvmfs).
 
 ```bash
 pixi add nodejs                                # npm-based CLIs and Lab source extensions
 pixi add cmake cxx-compiler fortran-compiler   # only if you compile extensions
 pixi add cfitsio                               # instead of libcfitsio-dev
+# or: source /cvmfs/.../bash.sh && module load cfitsio
 ```
 
 ## Caches and temp files
@@ -313,5 +344,6 @@ Skaha typically sets:
 | `node` / `npm` not found | Not in the image — `pixi add nodejs` in a project on `/scratch`. |
 | pip build fails | Add compilers/libs with pixi, not system apt. |
 | `/arc` quota pressure | `astroai-home-usage`; `astroai-cache-prune --all-safe`. |
+| `ls /cvmfs` looks empty | Normal — CVMFS mounts lazily; `source /cvmfs/soft.computecanada.ca/config/profile/bash.sh` then `module avail`. |
 | Jupyter 404 behind proxy | Notebook session must use port **8888** and `/skaha/startup.sh` — see [OPERATORS.md](OPERATORS.md). |
 | tmux shell is nologin | Image sets `default-shell /bin/bash`; use `bash -l` in webterm. |

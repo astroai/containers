@@ -28,6 +28,8 @@ Requires Docker with buildx.
 make build-all          # full stack
 make build/vscode       # one image (+ parents)
 docker buildx bake      # direct bake
+make clean              # remove local images.canfar.net/astroai/*
+make clean-all          # clean + prune buildx cache
 ```
 
 ## Local test
@@ -68,6 +70,6 @@ scripts/
 ## Design
 
 - **Same images for CPU and GPU** — pick the node in the portal; CUDA libs via pixi/uv in the project.
-- **Minimal bake stack** — `python` → `base` → four session images.
+- **Minimal bake stack** — `python` → `base` → four session images; heavy software via pixi or [CVMFS on CANFAR nodes](https://opencadc.github.io/canfar/platform/cvmfs/) ([source](https://github.com/opencadc/canfar/blob/main/docs/platform/cvmfs.md)).
 - **Quick feedback loops** — `/scratch` for active work, `astroai-new` / `astroai-env-resume`, caches on `/arc`.
 - **Skaha session types** — Contributed (5000) for webterm/vscode/marimo; Notebook (8888) for notebook.
