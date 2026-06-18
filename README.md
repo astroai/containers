@@ -14,7 +14,7 @@ Licensed under [BSD-2-Clause](LICENSE).
 | `marimo` | Reactive notebooks | Contributed |
 | `base` | Headless parent (not a portal session) | — |
 
-**User guide:** [docs/RUNTIME.md](docs/RUNTIME.md) — quickstart, storage, GPU, pixi/uv, command reference.
+**User guide:** [docs/RUNTIME.md](docs/RUNTIME.md) — quickstart, `gh`, storage, GPU, pixi/uv, AI CLI install, command reference.
 
 **Operator guide:** [docs/OPERATORS.md](docs/OPERATORS.md) — Harbor push, Science Portal registration.
 

@@ -27,6 +27,10 @@ Dev CLIs (pre-installed)
   gh, rg, fd, bat, fzf, delta, tldr   GitHub + fast search/browse
   gh auth login               one-time GitHub token setup
 
+AI agents (install once to ~/.local/bin on /arc — see RUNTIME.md)
+  curl installers: agent, claude, agy, opencode
+  npm (needs pixi nodejs): codex, freebuff
+
 Docs: less /opt/astroai/RUNTIME.md  (or see docs/RUNTIME.md in repo)
 
 Storage

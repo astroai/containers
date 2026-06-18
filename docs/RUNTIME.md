@@ -6,11 +6,13 @@ How to work in AstroAI sessions on the [CANFAR Science Platform](https://www.can
 
 ```bash
 astroai-status                    # gpu, disk, project, git — sanity check
-astroai-new mylab                 # pixi project on /scratch (or: git clone …)
+gh auth login                     # one-time GitHub setup (token or browser)
+astroai-new mylab                 # pixi project on /scratch (or: gh repo clone …)
 cd /scratch/mylab
 pixi add numpy astropy
 pixi run python -c "import astropy; print(astropy.__version__)"
 git init && git add -A && git commit -m "start"
+gh repo create mylab --private --source=. --push   # or push to an existing remote
 astroai-env-save mylab            # lockfile manifest on /arc (~KB)
 ```
 
@@ -86,10 +88,16 @@ You cannot `pip install` or write into `/cvmfs`. Module changes last for the cur
 
 ## Typical workflow
 
+**GitHub CLI (`gh`) is pre-installed** — prefer it over raw `git clone` URLs for GitHub repos. SSH keys still live in `~/.ssh` on `/arc`; `gh auth login` handles HTTPS tokens.
+
 ```bash
-# 1. Clone (SSH keys in ~/.ssh on /arc)
-git clone git@github.com:you/project.git
+# 0. One-time GitHub auth (persisted on /arc)
+gh auth login
+
+# 1. Clone or fork
+gh repo clone you/project
 cd project
+# or fork first: gh repo fork owner/upstream --clone
 
 # 2. Install dependencies (into the project — not the system image)
 pixi install
@@ -98,8 +106,27 @@ pixi install
 # 3. Develop and run
 pixi run python analysis.py
 
-# 4. Before closing the session
-git add -A && git commit -m "session work" && git push
+# 4. Review and share (before closing — /scratch is wiped)
+git add -A && git commit -m "session work"
+git push                          # existing branch
+# or open a PR in one step:
+gh pr create --fill
+```
+
+**Common `gh` commands** (after `gh auth login`):
+
+```bash
+gh repo list                      # your repos
+gh repo view                      # README + metadata for cwd repo
+gh issue list
+gh issue view 42
+gh pr list
+gh pr checkout 17                 # check out a PR branch locally
+gh pr diff 17
+gh pr view 17 --web               # open in browser (if portal allows)
+gh release list                   # tags/releases for cwd repo
+gh workflow list                  # GitHub Actions in cwd repo
+gh run list --limit 5             # recent CI runs
 ```
 
 ### GPU workflow
@@ -148,7 +175,7 @@ The image keeps a small **apt** layer: platform essentials and monitoring tools 
 | `less`, `file`, `vim-tiny` | Logs and quick edits |
 | `acl` | CANFAR `/arc` file permissions |
 
-**Not in the image:** `node`/`npm`, `build-essential`, `cmake`, Fortran, CUDA libs, Astropy, PyTorch, etc. Many of these are available via **CVMFS** (`module load`) — see [Alliance software (CVMFS)](#alliance-software-cvmfs).
+**Not in the image:** `node`/`npm`, AI agent CLIs (`agent`, `claude`, `agy`, `codex`, `freebuff`, `opencode`), `build-essential`, `cmake`, Fortran, CUDA libs, Astropy, PyTorch, etc. Install agents per [AI coding tools](#ai-coding-tools); install Node via [Node.js and npm](#nodejs-and-npm). Many system packages are available via **CVMFS** (`module load`) — see [Alliance software (CVMFS)](#alliance-software-cvmfs).
 
 ```bash
 pixi add nodejs                                # npm-based CLIs and Lab source extensions
@@ -224,47 +251,139 @@ astroai-env-save myproject --full --to /arc/projects/mygroup/env-saves/myproject
 
 ## AI coding tools
 
-The image ships **dev CLIs** that pair well with AI assistants (`gh`, `rg`, `fd`, `bat`, `fzf`, `delta`, `tldr`) but does **not** ship AI agent binaries or Node.js — those change too fast to pin. Install agents into **`~/.local/bin` on `/arc`** (persistent per user), or use a **pixi project on `/scratch`** when you want a reproducible Node/npm toolchain. `PATH` already includes `~/.local/bin`.
+The image ships **dev CLIs** that pair well with AI assistants (`gh`, `rg`, `fd`, `bat`, `fzf`, `delta`, `tldr`) but does **not** ship AI agent binaries or Node.js — those change too fast to pin.
 
-**GitHub CLI** (after `gh auth login` with a token or browser flow if your portal allows it):
+**Where to install:** curl/bash installers drop binaries into **`~/.local/bin` on `/arc`** (persistent; already on `PATH`). npm-based tools need [Node.js](#nodejs-and-npm) first — use a pixi project on `/scratch`. Each CLI needs its own API key or account.
+
+### Quick reference
+
+| Tool | Command | Install | Node? |
+|------|---------|---------|-------|
+| [Cursor Agent](https://cursor.com/docs/cli/overview) | `agent` | curl script | No |
+| [Claude Code](https://code.claude.com/docs/en/overview) | `claude` | curl script | No |
+| [Antigravity CLI](https://antigravity.google/docs/cli-install) | `agy` | curl script | No |
+| [OpenCode](https://dev.opencode.ai/docs/) | `opencode` | curl script (or npm) | Optional |
+| [Codex CLI](https://openai-codex.mintlify.app/installation) | `codex` | npm or `gh release download` | npm path only |
+| [Freebuff](https://freebuff.com/) | `freebuff` | npm | Yes |
+
+### One-time setup (all curl-installed agents)
 
 ```bash
-gh repo clone owner/repo
-gh pr list
-gh issue view 42
-gh pr diff 17
+mkdir -p ~/.local/bin
+# PATH already includes ~/.local/bin in AstroAI sessions; open a new shell if needed
+hash -r
 ```
 
-**Code search** (what most agents use under the hood):
+### Cursor Agent
 
 ```bash
-rg "def train" --type py
-fd Dockerfile
-bat scripts/astroai-help.sh
-tree -L 2 /scratch/myproject
-```
-
-**curl/bash installers** (no Node required):
-
-```bash
-# Cursor agent
 curl -fsS https://cursor.com/install | bash
+agent --version
+agent auth                       # or set CURSOR_API_KEY
+agent                            # interactive session
+agent update                     # manual upgrade
+```
 
-# Claude Code
+### Claude Code
+
+```bash
 curl -fsSL https://claude.ai/install.sh | bash
+claude --version
+claude                           # sign in on first run
+```
 
-# OpenCode
+Native install auto-updates in the background. Prefer this over the deprecated npm package `@anthropic-ai/claude-code`.
+
+### Antigravity CLI (Google)
+
+Replacement for Gemini CLI (deprecated June 2026). Free tier via Google account.
+
+```bash
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+agy --version
+agy                              # sign in on first run
+agy update                       # manual upgrade
+```
+
+### OpenCode
+
+Prefer the curl installer (no Node). npm package name is `opencode-ai`, not `opencode`.
+
+```bash
+# Recommended — native binary
 curl -fsSL https://opencode.ai/install | bash
+opencode --version
 
-# Aider (uses uv already in the image)
+# Alternative — needs Node (see below)
+npm install -g opencode-ai@latest
+```
+
+Force install dir to `~/.local/bin` if the script picks another path:
+
+```bash
+XDG_BIN_DIR="$HOME/.local/bin" curl -fsSL https://opencode.ai/install | bash
+```
+
+### Codex CLI (OpenAI)
+
+**Option A — npm** (needs Node 16+; package is `@openai/codex`, not `codex`):
+
+```bash
+# after pixi nodejs setup (see Node.js section)
+pixi run npm install -g @openai/codex
+codex --version
+codex login
+```
+
+**Option B — prebuilt binary via `gh`** (no Node; good default on AstroAI):
+
+```bash
+# pick the musl tarball matching your arch (x86_64 shown; arm64: codex-aarch64-unknown-linux-musl.tar.gz)
+gh release download -R openai/codex -p 'codex-x86_64-unknown-linux-musl.tar.gz' -D /tmp
+tar -xzf /tmp/codex-x86_64-unknown-linux-musl.tar.gz -C ~/.local/bin
+mv ~/.local/bin/codex-x86_64-unknown-linux-musl ~/.local/bin/codex
+codex --version
+codex login
+```
+
+List available assets: `gh release view -R openai/codex --json assets`.
+
+### Freebuff
+
+npm-only. Requires Node — see [Node.js and npm](#nodejs-and-npm).
+
+```bash
+npm install -g freebuff
+freebuff --version
+cd /scratch/myproject && freebuff
+```
+
+If a published npm version fails at runtime, check [CodebuffAI/codebuff issues](https://github.com/CodebuffAI/codebuff/issues) or install from source with `gh repo clone CodebuffAI/codebuff`.
+
+### Pair agents with `gh` and search tools
+
+Agents work best when the repo is already on GitHub and searchable:
+
+```bash
+gh auth login
+gh repo clone you/project && cd project
+rg "def train" --type py          # code search
+fd Dockerfile
+bat README.md
+gh pr list                        # context for the agent
+gh issue list
+```
+
+**Aider** (Python agent via uv — no Node):
+
+```bash
 UV_TOOL_DIR="${HOME}/.local/share/uv/tools" \
 UV_TOOL_BIN_DIR="${HOME}/.local/bin" \
 uv tool install aider-chat
+aider --help
 ```
 
-**npm-based agents** need Node first — see [Node.js and npm](#nodejs-and-npm) below.
-
-Each CLI needs its own API key or account. Re-run the installer when a tool publishes an update, or manage versions yourself under `~/.local` or in your pixi project.
+Re-run installers when a tool publishes an update, or use each tool's built-in update command (`agent update`, `agy update`, etc.).
 
 ## Package managers
 
@@ -278,30 +397,84 @@ pixi run python script.py
 
 ### Node.js and npm
 
-The image has **no system `node` or `npm`**. JupyterLab itself runs without Node (prebuilt pip wheel). You only need Node for:
+The image has **no system `node` or `npm`**. JupyterLab runs without Node (prebuilt pip wheel). You need Node for:
 
-- **npm-based AI agents** and other JS CLIs
-- **JupyterLab source extensions** installed from npm (rare — prefer prebuilt `pip` extensions)
+- **npm-based AI agents** — Codex (`@openai/codex`), Freebuff, OpenCode (optional)
+- **JupyterLab source extensions** from npm (rare — prefer prebuilt `pip` extensions)
 
-Use a pixi project on **`/scratch`** (same pattern as Python stacks). Package cache still lands under `~/.pixi` on `/arc`:
+**Prefer curl installers** for Cursor Agent, Claude Code, Antigravity, and OpenCode — they land in `~/.local/bin` on `/arc` and survive `/scratch` expiry. Use Node when npm is the only install path.
+
+#### Recommended: pixi project on `/scratch`
+
+Same pattern as Python stacks. Package cache lands under `~/.pixi` on `/arc`:
 
 ```bash
 cd /scratch
 pixi init node-tools
 cd node-tools
-pixi add nodejs
+pixi add nodejs=22            # or: pixi add nodejs (latest); Codex needs Node 16+
 
 pixi run node --version
 pixi run npm --version
-
-# Example: npm-based CLI (check upstream for the current package name)
-pixi run npm install -g @anthropic-ai/claude-code
-pixi run claude --help
 ```
+
+Install npm CLIs **into the pixi env** (not system-wide):
+
+```bash
+# OpenAI Codex
+pixi run npm install -g @openai/codex
+pixi run codex --version
+
+# Freebuff
+pixi run npm install -g freebuff
+pixi run freebuff --version
+
+# OpenCode (alternative to curl install)
+pixi run npm install -g opencode-ai@latest
+pixi run opencode --version
+```
+
+Run npm globals through pixi each session:
+
+```bash
+cd /scratch/node-tools
+pixi run codex
+pixi run freebuff
+```
+
+Or add shell aliases in `~/.bashrc` on `/arc`:
+
+```bash
+alias codex='cd /scratch/node-tools && pixi run codex'
+```
+
+#### Persist Node across sessions
+
+```bash
+cd /scratch/node-tools
+astroai-env-save node-tools     # saves pixi.toml + lockfile to /arc
+# next session:
+astroai-env-resume node-tools
+cd /scratch/node-tools && pixi install
+```
+
+Binaries from `npm install -g` inside the pixi env live under `.pixi/` on `/scratch` — they are rebuilt by `pixi install` after resume. For long-lived personal CLIs, prefer curl → `~/.local/bin` or commit the pixi project to git.
+
+#### npm cache and `/arc` quota
 
 `npm` cache defaults to `~/.cache/npm` on `/arc` (`NPM_CONFIG_CACHE`). Prune with `astroai-cache-prune --all-safe` if it grows.
 
-To persist the Node toolchain across sessions, keep `pixi.toml` / `pixi.lock` in git and `astroai-env-save` the project — same as Python workflows. Binaries installed with `npm install -g` inside the pixi env live under `.pixi/` on `/scratch` (wiped when scratch expires); prefer curl installers to `~/.local` for long-lived personal CLIs, or re-run `pixi install` after `astroai-env-resume`.
+#### Alliance CVMFS (optional)
+
+If you already use modules for other tools, you can load Alliance Node instead of pixi — but **pixi is simpler** for pinning npm CLIs alongside Python deps:
+
+```bash
+source /cvmfs/soft.computecanada.ca/config/profile/bash.sh
+module avail nodejs
+module load nodejs/22          # version varies; check module avail
+node --version && npm --version
+npm install -g @openai/codex   # installs to your user prefix; ensure ~/.local/bin is on PATH
+```
 
 ### uv (recommended for pip/venv workflows)
 
@@ -360,8 +533,10 @@ Skaha typically sets:
 | `git clone` SSH fails | Add your key to `~/.ssh` on `/arc`. |
 | GPU not visible | Did you pick a GPU node? Run `nvidia-smi`. |
 | `import torch` no CUDA | GPU node + `cuda-version` / GPU torch via pixi. |
-| AI CLI not found | Install into `~/.local/bin` or a pixi `nodejs` project on `/scratch` (see RUNTIME.md). |
-| `node` / `npm` not found | Not in the image — `pixi add nodejs` in a project on `/scratch`. |
+| AI CLI not found | Curl installers → `~/.local/bin`; npm tools → pixi `nodejs` project (see [AI coding tools](#ai-coding-tools)). |
+| `node` / `npm` not found | Not in the image — `pixi add nodejs` in a project on `/scratch` (see [Node.js and npm](#nodejs-and-npm)). |
+| `gh: not authenticated` | Run `gh auth login` once; token persists on `/arc`. |
+| Wrong npm package | Codex: `@openai/codex` · OpenCode: `opencode-ai` · Claude Code: use curl install, not npm. |
 | pip build fails | Add compilers/libs with pixi, not system apt. |
 | `/arc` quota pressure | `astroai-home-usage`; `astroai-cache-prune --all-safe`. |
 | `ls /cvmfs` looks empty | Normal — CVMFS mounts lazily; `source /cvmfs/soft.computecanada.ca/config/profile/bash.sh` then `module avail`. |
