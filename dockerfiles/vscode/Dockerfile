@@ -9,6 +9,8 @@ ARG OPENVSCODE_VERSION=v1.109.5
 
 FROM ${REGISTRY}/${OWNER}/${BASE_NAME}:${TAG}
 
+ARG OPENVSCODE_VERSION=v1.109.5
+
 LABEL io.canfar.skaha.session.type="contributed"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
