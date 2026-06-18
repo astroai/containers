@@ -101,6 +101,6 @@ make build/notebook
 # simulates: /skaha/startup.sh <session-id> on port 8888
 ```
 
-## Runtime docs for users
+## Usage docs for users
 
-Point users to [RUNTIME.md](RUNTIME.md) (also at `/opt/astroai/RUNTIME.md` inside sessions).
+Point users to [USAGE.md](USAGE.md) (also at `/opt/astroai/USAGE.md` inside sessions).

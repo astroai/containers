@@ -1,6 +1,13 @@
-# Runtime usage
+# Usage guide
 
-How to work in AstroAI sessions on the [CANFAR Science Platform](https://www.canfar.net/science-portal). Platform docs are built from [opencadc/canfar](https://github.com/opencadc/canfar) at [opencadc.github.io/canfar](https://opencadc.github.io/canfar/). For building and publishing images, see [README.md](../README.md). Operators: [OPERATORS.md](OPERATORS.md).
+How to work in AstroAI sessions on the [CANFAR Science Platform](https://www.canfar.net/science-portal). Platform docs are built from [opencadc/canfar](https://github.com/opencadc/canfar) at [opencadc.github.io/canfar](https://opencadc.github.io/canfar/).
+
+| Doc | Audience |
+|-----|----------|
+| **USAGE.md** (this file) | Session users — quickstart, storage, GPU, tools |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Developers changing this repo |
+| [OPERATORS.md](OPERATORS.md) | Platform admins — Harbor push, portal registration |
+| [README.md](../README.md) | Repo overview and build commands |
 
 ## First five minutes (quick feedback loop)
 
@@ -25,7 +32,7 @@ pixi run python analysis.py
 git push                          # before closing — /scratch is wiped
 ```
 
-**Commands on every session:** `astroai-help` · `astroai-status` · `less /opt/astroai/RUNTIME.md`
+**Commands on every session:** `astroai-help` · `astroai-status` · `less /opt/astroai/USAGE.md`
 
 ## Session types
 

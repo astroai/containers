@@ -14,15 +14,19 @@ Licensed under [BSD-2-Clause](LICENSE).
 | `marimo` | Reactive notebooks | Contributed |
 | `base` | Headless parent (not a portal session) | — |
 
-**User guide:** [docs/RUNTIME.md](docs/RUNTIME.md) — quickstart, `gh`, storage, GPU, pixi/uv, AI CLI install, command reference.
+## Documentation
 
-**Operator guide:** [docs/OPERATORS.md](docs/OPERATORS.md) — Harbor push, Science Portal registration.
+| Doc | Audience |
+|-----|----------|
+| [docs/USAGE.md](docs/USAGE.md) | **Session users** — quickstart, `gh`, storage, GPU, pixi/uv, AI CLI install |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | **Developers** — clone, build, test, open PRs |
+| [docs/OPERATORS.md](docs/OPERATORS.md) | **Platform admins** — Harbor push, Science Portal registration |
 
-In-session: `astroai-help` · `less /opt/astroai/RUNTIME.md`
+In-session: `astroai-help` · `less /opt/astroai/USAGE.md`
 
 ## Build
 
-Requires Docker with buildx.
+Requires Docker with buildx. See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full dev loop.
 
 ```bash
 make build-all          # full stack
@@ -44,6 +48,8 @@ make build/notebook
 
 ## Push to Harbor
 
+Maintainers only — see [OPERATORS.md](docs/OPERATORS.md).
+
 ```bash
 make build/vscode
 make push/vscode TAG=26.06
@@ -60,8 +66,9 @@ dockerfiles/
   notebook/     # notebook: JupyterLab + ipykernel (port 8888)
   marimo/       # contributed: marimo
 docs/
-  RUNTIME.md    # user-facing session guide
-  OPERATORS.md  # portal registration
+  USAGE.md      # user-facing session guide
+  CONTRIBUTING.md
+  OPERATORS.md
 scripts/
   startup-*.sh  # session entrypoints
   astroai-*     # env save/resume, help, status, caches
@@ -73,3 +80,7 @@ scripts/
 - **Minimal bake stack** — `python` → `base` → four session images; heavy software via pixi or [CVMFS on CANFAR nodes](https://opencadc.github.io/canfar/platform/cvmfs/) ([source](https://github.com/opencadc/canfar/blob/main/docs/platform/cvmfs.md)).
 - **Quick feedback loops** — `/scratch` for active work, `astroai-new` / `astroai-env-resume`, caches on `/arc`.
 - **Skaha session types** — Contributed (5000) for webterm/vscode/marimo; Notebook (8888) for notebook.
+
+## Contributing
+
+Pull requests welcome — see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).

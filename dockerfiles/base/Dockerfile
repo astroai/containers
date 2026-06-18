@@ -82,4 +82,4 @@ RUN chmod a+rx /opt/astroai/bin/* /opt/astroai/lib/* \
     && ln -sf astroai-status.sh /opt/astroai/bin/astroai-status \
     && ln -sf astroai-new.sh /opt/astroai/bin/astroai-new
 
-COPY docs/RUNTIME.md /opt/astroai/RUNTIME.md
+COPY docs/USAGE.md /opt/astroai/USAGE.md
