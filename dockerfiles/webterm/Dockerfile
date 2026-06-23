@@ -21,7 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ttyd-bin /usr/bin/ttyd /usr/local/bin/ttyd
 
 RUN curl -sS https://starship.rs/install.sh | sh -s -- --yes \
-    && /usr/local/bin/starship init bash --print-full-init > /etc/profile.d/starship.sh \
+    && { printf '%s\n' \
+        '# Bash-only (/etc/profile sources profile.d for all login shells, including sh).' \
+        'if [ -z "${BASH_VERSION:-}" ]; then' \
+        '    return 0 2>/dev/null || exit 0' \
+        'fi'; \
+       /usr/local/bin/starship init bash --print-full-init; \
+    } > /etc/profile.d/starship.sh \
     && chmod a+r /etc/profile.d/starship.sh
 
 RUN printf '%s\n' \

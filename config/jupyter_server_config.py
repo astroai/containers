@@ -12,3 +12,6 @@ c.InlineBackend.figure_formats = {"png", "jpeg", "svg", "pdf"}
 # CANFAR proxy handles auth; disable local token/password (Jupyter Server 2.x)
 c.IdentityProvider.token = ""
 c.PasswordIdentityProvider.hashed_password = ""
+
+# JupyterLab defaults to /bin/sh when SHELL is unset; astroai.sh requires bash.
+c.ServerApp.terminado_settings = {"shell_command": ["/bin/bash", "-l"]}

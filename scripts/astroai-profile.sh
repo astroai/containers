@@ -1,6 +1,11 @@
 # AstroAI shell defaults: PATH, caches, temps, aliases.
 # Caches live under ~/.cache on /arc (persistent, easy to prune).
 # TMPDIR uses /scratch when mounted (fast, ephemeral).
+#
+# Bash-only (/etc/profile sources profile.d for all login shells, including sh).
+if [ -z "${BASH_VERSION:-}" ]; then
+    return 0 2>/dev/null || exit 0
+fi
 
 if [[ -n "${ASTROAI_PROFILE_LOADED:-}" ]]; then
     return 0 2>/dev/null || true
@@ -171,8 +176,10 @@ if [[ -t 1 ]]; then
     trap __astroai_auto_archive EXIT
 fi
 
-if [[ -z "${PROMPT_COMMAND:-}" ]]; then
-    PROMPT_COMMAND="__astroai_scratch_reminder; __astroai_quota_reminder"
-else
-    PROMPT_COMMAND="${PROMPT_COMMAND}; __astroai_scratch_reminder; __astroai_quota_reminder"
+if [[ -t 1 ]]; then
+    if [[ -z "${PROMPT_COMMAND:-}" ]]; then
+        PROMPT_COMMAND="__astroai_scratch_reminder; __astroai_quota_reminder"
+    else
+        PROMPT_COMMAND="${PROMPT_COMMAND}; __astroai_scratch_reminder; __astroai_quota_reminder"
+    fi
 fi

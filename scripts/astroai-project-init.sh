@@ -16,7 +16,11 @@ MEMBERS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --members) MEMBERS="${2}"; shift 2 ;;
+        --members)
+            [[ -n "${2:-}" ]] || { echo "--members requires a comma-separated user list" >&2; exit 1; }
+            MEMBERS="${2}"
+            shift 2
+            ;;
         -h|--help)
             sed -n '2,12p' "$0"
             exit 0

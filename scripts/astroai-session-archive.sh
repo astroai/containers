@@ -14,7 +14,11 @@ FORCE=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --name) NAME="$2"; shift 2 ;;
+        --name)
+            [[ -n "${2:-}" ]] || { echo "--name requires a value" >&2; exit 1; }
+            NAME="$2"
+            shift 2
+            ;;
         --force|-f) FORCE=1; shift ;;
         -h|--help)
             sed -n '2,7p' "$0"

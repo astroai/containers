@@ -60,7 +60,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
-    TERM=xterm-256color
+    TERM=xterm-256color \
+    SHELL=/bin/bash
 
 RUN printf '%s\n' \
     '[ -f /etc/profile.d/astroai.sh ] && . /etc/profile.d/astroai.sh' \
