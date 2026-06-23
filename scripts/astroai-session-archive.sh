@@ -53,17 +53,19 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
         echo "Pushing branch '${BRANCH}' to ${REMOTE}..."
     fi
     if git push; then
-        echo "✓ pushed ${BRANCH}"
+        [[ "${FORCE}" -eq 0 ]] && echo "✓ pushed ${BRANCH}"
         PUSHED=1
     else
-        echo "✗ git push failed — check remote or run: gh auth login"
+        [[ "${FORCE}" -eq 0 ]] && echo "✗ git push failed — check remote or run: gh auth login"
     fi
 else
-    echo "Not in a git repo — skipping push."
-    echo "  Hint: cd /scratch/myproject && gh repo create myproject --private --source=. --push"
+    [[ "${FORCE}" -eq 0 ]] && echo "Not in a git repo — skipping push."
+    [[ "${FORCE}" -eq 0 ]] && echo "  Hint: cd /scratch/myproject && gh repo create myproject --private --source=. --push"
 fi
 
-echo ""
+if [[ "${FORCE}" -eq 0 ]]; then
+    echo ""
+fi
 
 # ── Environment ──────────────────────────────────
 KIND="$(astroai_detect_project)"
@@ -76,14 +78,14 @@ if [[ -n "${KIND}" ]]; then
         echo "Saving ${KIND} environment '${NAME}'..."
     fi
     if /opt/astroai/bin/astroai-env-save "${NAME}"; then
-        echo "✓ env saved: ${NAME}"
+        [[ "${FORCE}" -eq 0 ]] && echo "✓ env saved: ${NAME}"
         SAVED=1
     else
-        echo "✗ env save failed — run: astroai-env-save ${NAME}"
+        [[ "${FORCE}" -eq 0 ]] && echo "✗ env save failed — run: astroai-env-save ${NAME}"
     fi
 else
-    echo "No pixi or uv project detected — skipping env save."
-    echo "  Hint: pixi init && pixi add python numpy"
+    [[ "${FORCE}" -eq 0 ]] && echo "No pixi or uv project detected — skipping env save."
+    [[ "${FORCE}" -eq 0 ]] && echo "  Hint: pixi init && pixi add python numpy"
 fi
 
 if [[ "${FORCE}" -eq 0 ]]; then

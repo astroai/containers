@@ -23,11 +23,11 @@ while [[ $# -gt 0 ]]; do
         --no-gh)   NO_GH=1; shift ;;
         --astro)   SUGGEST_ASTRO=1; shift ;;
         -h|--help)
-            echo "Usage: astroai-new [name] [flags]" >&2
-            echo "  --uv        use uv instead of pixi" >&2
-            echo "  --no-git    skip git init" >&2
-            echo "  --no-gh     skip GitHub repo creation" >&2
-            echo "  --astro     suggest common astro packages" >&2
+            echo "Usage: astroai-new [name] [flags]"
+            echo "  --uv        use uv instead of pixi"
+            echo "  --no-git    skip git init"
+            echo "  --no-gh     skip GitHub repo creation"
+            echo "  --astro     suggest common astro packages"
             exit 0
             ;;
         -*)

@@ -27,7 +27,7 @@ Project workflow
   astroai-clone owner/repo       clone + auto-install on /scratch
   astroai-project-init <name> create team workspace on /arc/projects
   pixi install / uv sync      deps into project (not system image)
-  astroai-session-archive     git push + env save + summary (one command)
+  astroai-session-archive     git push + env save + summary (--force, --name)
   git push                    before session ends — scratch is wiped
 
 Dev CLIs (pre-installed)
