@@ -64,6 +64,82 @@ mkdir -p myproject && cd myproject
 
 **Back up work with git.** `/scratch` is wiped when the session ends.
 
+## Team workspaces
+
+`/arc/projects/<group>/` is CANFAR's persistent, ACL-controlled shared storage. Use it for team datasets, shared environment manifests, and collaborative results.
+
+### Create a workspace
+
+```bash
+astroai-project-init mygroup --members alice,bob
+```
+
+Creates `/arc/projects/mygroup/` with `data/`, `results/`, and `env-saves/` subdirectories. The `--members` flag sets POSIX ACLs (`setfacl -R -m u:user:rwx`) so teammates can read and write. Re-run without `--members` to add members later.
+
+```bash
+astroai-project-init mygroup --members carol   # add another member
+```
+
+### Move data between tiers
+
+**Stage data from persistent storage to `/scratch` for fast I/O:**
+
+```bash
+astroai-data-stage /arc/projects/mygroup/data/catalog.fits
+# copies catalog.fits → /scratch/catalog.fits
+
+astroai-data-stage /arc/projects/mygroup/survey/  /scratch/survey/
+# copies survey/ contents → /scratch/survey/
+```
+
+**Sync results from `/scratch` back to persistent storage:**
+
+```bash
+astroai-data-sync /scratch/results/  /arc/projects/mygroup/results/
+```
+
+Both use `rsync -avh --progress` with source size display. `astroai-data-stage` asks before overwriting an existing target. `astroai-data-sync` warns if the source is not on `/scratch`.
+
+### Team environment saves
+
+Share environment manifests so the whole team can reproduce the same stack:
+
+```bash
+cd /scratch/myproject
+astroai-env-save myproject --to /arc/projects/mygroup/env-saves/myproject
+```
+
+Discover team saves:
+
+```bash
+astroai-env-list --team          # team saves only
+astroai-env-list --all           # personal + team
+```
+
+Resume a team save:
+
+```bash
+astroai-env-resume myproject --from /arc/projects/mygroup/env-saves/myproject
+```
+
+### Typical team workflow
+
+```bash
+# Session start
+astroai-env-resume myproject --from /arc/projects/mygroup/env-saves/myproject
+astroai-data-stage /arc/projects/mygroup/data/catalog.fits
+
+# Work on /scratch
+cd /scratch/myproject
+pixi run python analysis.py
+
+# Share results
+astroai-data-sync /scratch/results/  /arc/projects/mygroup/results/
+
+# Close
+astroai-session-archive
+```
+
 ## Alliance software (CVMFS)
 
 CANFAR worker nodes mount **CVMFS** — a read-only software tree maintained by the [Digital Research Alliance of Canada](https://docs.alliancecan.ca/) (DRAC / Alliance; same stacks as Fir, Nibi, and other national clusters). It is available in **all** AstroAI sessions and complements the lean image: the container brings `uv`, `pixi`, and basics; CVMFS brings thousands of pre-built packages without bloating the image.
@@ -97,6 +173,19 @@ You cannot `pip install` or write into `/cvmfs`. Module changes last for the cur
 
 **GitHub CLI (`gh`) is pre-installed** — prefer it over raw `git clone` URLs for GitHub repos. SSH keys still live in `~/.ssh` on `/arc`; `gh auth login` handles HTTPS tokens.
 
+### Quick start with `astroai-clone`
+
+Clones and installs deps in one step — detects pixi or uv automatically:
+
+```bash
+gh auth login
+astroai-clone you/project
+cd /scratch/project
+pixi run python analysis.py
+```
+
+### Manual clone and setup
+
 ```bash
 # 0. One-time GitHub auth (persisted on /arc)
 gh auth login
@@ -119,6 +208,17 @@ git push                          # existing branch
 # or open a PR in one step:
 gh pr create --fill
 ```
+
+### Closing a session
+
+Run `astroai-session-archive` to push code and save your environment in one command:
+
+```bash
+astroai-session-archive           # auto-detect project, git push + env save
+astroai-session-archive --name my-experiment  # custom save name
+```
+
+It prints a summary of what was archived and a contextual `/scratch` wipe reminder.
 
 **Common `gh` commands** (after `gh auth login`):
 
@@ -165,6 +265,13 @@ Pixi (or uv/pip) downloads CUDA user libraries into the project environment. No 
 | `astroai-env-list` | List saves under `~/.astroai/saves` |
 | `astroai-home-usage` | Disk breakdown under `$HOME` on `/arc` |
 | `astroai-cache-prune --all-safe` | Clear pip/uv/npm/pixi package caches |
+| `astroai-clone <owner/repo>` | Clone repo to `/scratch` and install deps |
+| `astroai-install <tool>` | Install AI coding tools to `~/.local/bin` |
+| `astroai-data-stage <src> [dst]` | Copy data from persistent storage to `/scratch` |
+| `astroai-data-sync <src> <dst>` | Copy `/scratch` results back to persistent storage |
+| `astroai-project-init <name>` | Create team workspace under `/arc/projects` |
+| `astroai-session-archive [--name <name>]` | Git push + env save + summary before closing |
+| `astroai-debug` | Full diagnostic report (GPU, disk, tools, network) |
 
 ## What is pre-installed (needs root)
 
@@ -261,6 +368,15 @@ astroai-env-save myproject --full --to /arc/projects/mygroup/env-saves/myproject
 ## AI coding tools
 
 The image ships **dev CLIs** that pair well with AI assistants (`gh`, `rg`, `fd`, `bat`, `fzf`, `delta`, `tldr`) but does **not** ship AI agent binaries or Node.js — those change too fast to pin.
+
+**One-command install** (recommended):
+
+```bash
+astroai-install claude            # or: agent, agy, opencode, codex, freebuff, aider
+astroai-install --list            # see all available tools
+```
+
+`astroai-install` handles the right installer per tool (curl, gh release download, npm, or uv) and verifies each install. All tools land in `~/.local/bin` on `/arc` (persistent).
 
 **Where to install:** curl/bash installers drop binaries into **`~/.local/bin` on `/arc`** (persistent; already on `PATH`). npm-based tools need [Node.js](#nodejs-and-npm) first — use a pixi project on `/scratch`. Each CLI needs its own API key or account.
 
@@ -533,6 +649,33 @@ Skaha typically sets:
 - `skaha_sessionid` — reverse-proxy paths (**Contributed** sessions: webterm, vscode, marimo)
 - `JUPYTER_TOKEN` — session ID on **Notebook** sessions (same value as Skaha session ID)
 - GPU devices — on GPU nodes, via the container runtime
+
+## Diagnostics
+
+`astroai-debug` produces a comprehensive snapshot of your session — useful for troubleshooting, sharing with collaborators, or attaching to support requests.
+
+```bash
+astroai-debug                     # save to ~/.astroai/debug-<timestamp>.log + print
+astroai-debug --stdout            # print only
+astroai-debug --file /path/out    # save to custom path
+```
+
+The report covers:
+
+| Section | What it shows |
+|---------|---------------|
+| Session | Home, PWD, scratch mount, tmp, shell, uptime |
+| Profile | ASTROAI_PROFILE_LOADED, PATH, uv/pixi/cache dirs |
+| GPU | nvidia-smi summary and processes (or CPU node notice) |
+| Disk | /scratch and HOME `df`, top directories by size |
+| Tools | Version check for git, gh, uv, pixi, jq, rg, fd, bat, and more |
+| Project | Pixi/uv detection, lockfile size, env size |
+| Network | Reachability check for pypi.org, github.com, conda |
+| Environment | Key env vars (sanitized — tokens and keys hidden) |
+| Processes | Top 10 by CPU |
+| CVMFS | `/cvmfs/soft.computecanada.ca` status |
+
+Share the log file: `cat ~/.astroai/debug-<timestamp>.log`
 
 ## Troubleshooting
 
