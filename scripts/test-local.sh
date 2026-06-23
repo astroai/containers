@@ -36,7 +36,12 @@ echo "  HOME=${FAKE_ARC}/testuser"
 echo "  /scratch=${FAKE_SCRATCH}"
 echo "  session=${SESSION_ID}"
 
-docker run --rm -it \
+TTY_ARGS=()
+if [[ -t 0 ]]; then
+    TTY_ARGS=(-it)
+fi
+
+docker run --rm "${TTY_ARGS[@]}" \
     -u "$(id -u):$(id -g)" \
     -e HOME="${FAKE_ARC}/testuser" \
     -e USER=testuser \

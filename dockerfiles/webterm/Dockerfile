@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ttyd-bin /usr/bin/ttyd /usr/local/bin/ttyd
 
 RUN curl -sS https://starship.rs/install.sh | sh -s -- --yes \
-    && /usr/local/bin/starship init bash --print-full-init >> /etc/profile.d/astroai.sh
+    && /usr/local/bin/starship init bash --print-full-init > /etc/profile.d/starship.sh \
+    && chmod a+r /etc/profile.d/starship.sh
 
 RUN printf '%s\n' \
     'set -g default-shell /bin/bash' \
@@ -37,7 +38,7 @@ RUN chmod a+rx /cadc/*.sh /skaha/startup.sh
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:5000/ || exit 1
+    CMD curl -fsS http://127.0.0.1:5000/ >/dev/null
 
 WORKDIR /tmp
 CMD ["/cadc/startup-webterm.sh"]

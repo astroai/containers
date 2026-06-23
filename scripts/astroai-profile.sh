@@ -10,7 +10,10 @@ export ASTROAI_PROFILE_LOADED=1
 export PATH="${HOME}/.local/bin:/opt/astroai/bin:${PATH}"
 
 # XDG base dirs (on /arc/home/$USER)
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
+# Skaha notebook jobs may set XDG_CACHE_HOME=$HOME; keep caches under ~/.cache instead.
+if [[ -z "${XDG_CACHE_HOME:-}" || "${XDG_CACHE_HOME}" == "${HOME}" ]]; then
+    export XDG_CACHE_HOME="${HOME}/.cache"
+fi
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 
@@ -44,7 +47,11 @@ export ASTROAI_SAVE_DIR="${ASTROAI_SAVE_DIR:-${HOME}/.astroai/saves}"
 # Compile/download temps on scratch SSD when available
 if [[ -d /scratch && -w /scratch ]]; then
     export TMPDIR="${TMPDIR:-/scratch/.tmp-${USER:-$(id -un)}}"
+    mkdir -p "${TMPDIR}" 2>/dev/null || true
 fi
+
+# /scratch (project envs) and ~/.cache (uv/pixi cache on /arc) are different mounts
+export UV_LINK_MODE="${UV_LINK_MODE:-copy}"
 
 alias py="python3"
 alias ll="ls -alF"

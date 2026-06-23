@@ -30,7 +30,7 @@ RUN chmod a+rx /cadc/*.sh /skaha/startup.sh
 EXPOSE 8888
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8888/ || exit 1
+    CMD bash -c 'SID="${JUPYTER_TOKEN:-}"; if [[ -n "${SID}" ]]; then curl -fsS "http://127.0.0.1:8888/session/notebook/${SID}/api/status" >/dev/null; else curl -fsS http://127.0.0.1:8888/api/status >/dev/null; fi'
 
 WORKDIR /tmp
 CMD ["/skaha/startup.sh"]

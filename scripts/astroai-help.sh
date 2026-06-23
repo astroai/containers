@@ -37,7 +37,8 @@ Dev CLIs (pre-installed)
 AI agents (install once to ~/.local/bin on /arc — see USAGE.md)
   astroai-install <tool>     install agent, claude, agy, opencode, codex, freebuff, aider
   curl installers: agent, claude, agy, opencode
-  npm (needs pixi nodejs): codex, freebuff
+  gh release (no Node): codex via astroai-install codex
+  npm (needs pixi nodejs): freebuff
 
 Docs: less /opt/astroai/USAGE.md  (or see docs/USAGE.md in repo)
 
