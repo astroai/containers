@@ -57,3 +57,38 @@ if [[ -n "${BASH_VERSION:-}" ]]; then
     command -v rg >/dev/null 2>&1 && eval "$(rg --generate complete-bash)"
     command -v fzf >/dev/null 2>&1 && eval "$(fzf --bash)"
 fi
+
+# ── Periodic /scratch reminder (every ~2 hours of session time) ──
+__astroai_scratch_reminder() {
+    local _start_file="${HOME}/.astroai/session-started"
+    local _reminder_file="${HOME}/.astroai/last-reminder"
+    local _interval=7200  # 2 hours
+
+    [[ -t 1 ]] || return 0
+    [[ -f "${_start_file}" ]] || return 0
+
+    local _start _now _elapsed _last _since_last
+    _start="$(cat "${_start_file}" 2>/dev/null)" || return 0
+    [[ -n "${_start}" && "${_start}" -gt 0 ]] || return 0
+
+    printf -v _now '%(%s)T' -1
+    _elapsed=$(( _now - _start ))
+    (( _elapsed >= _interval )) || return 0
+
+    _last=0
+    [[ -f "${_reminder_file}" ]] && _last="$(cat "${_reminder_file}" 2>/dev/null)" || true
+    _since_last=$(( _now - _last ))
+    (( _since_last >= _interval )) || return 0
+
+    local _hours=$(( _elapsed / 3600 )) _mins=$(( (_elapsed % 3600) / 60 ))
+    printf '\n  \033[1;33m⏳ %dh %dm on /scratch — git push or astroai-session-archive\033[0m\n\n' "${_hours}" "${_mins}"
+
+    mkdir -p "${HOME}/.astroai"
+    printf '%s' "${_now}" > "${_reminder_file}"
+}
+
+if [[ -z "${PROMPT_COMMAND:-}" ]]; then
+    PROMPT_COMMAND="__astroai_scratch_reminder"
+else
+    PROMPT_COMMAND="${PROMPT_COMMAND}; __astroai_scratch_reminder"
+fi
