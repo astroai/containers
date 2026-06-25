@@ -7,6 +7,8 @@ if [ -z "${BASH_VERSION:-}" ]; then
     return 0 2>/dev/null || exit 0
 fi
 
+[[ -f /opt/astroai/lib/astroai-env-common.sh ]] && source /opt/astroai/lib/astroai-env-common.sh
+
 # Always ensure platform paths — login children may inherit ASTROAI_PROFILE_LOADED
 # from a parent startup shell and hit the guard before PATH is customized.
 case ":${PATH}:" in
@@ -143,7 +145,7 @@ __astroai_quota_reminder() {
     (( _since_last >= _interval )) || return 0
 
     local _used_pct
-    _used_pct="$(df "${HOME}" 2>/dev/null | awk 'NR>1 {used=$3; size=$2; if(size>0) printf "%.0f", (used/size)*100; else print 0}')"
+    _used_pct="$(astroai_quota_used_pct "${HOME}")"
     [[ -n "${_used_pct}" ]] || return 0
 
     # Always record that we checked, so df doesn't run on every prompt
@@ -167,6 +169,7 @@ __astroai_quota_reminder() {
 }
 
 # ── Pre-exit auto-archive (runs astroai-session-archive --force once per session) ──
+# ponytail: silent git push on shell exit → make opt-in if users complain
 __astroai_auto_archive() {
     local _marker="${HOME}/.astroai/auto-archived"
 

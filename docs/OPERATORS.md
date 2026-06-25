@@ -277,59 +277,7 @@ Six of seven tools install without Node. Codex uses `gh release download` (requi
 
 ### Pre-seeding in the base image
 
-Operators can bake AI tools into the base image to eliminate per-session install overhead. This is **optional** — `astroai-install` works on-demand, and tools persist on `/arc` after the first install.
-
-**Example Dockerfile additions** (after the existing `COPY` blocks in `dockerfiles/base/Dockerfile`):
-
-> **⚠  Caution:** curl-based installers may write binaries to unpredictable locations (e.g., `/usr/local/bin`, `~/.local/bin`, or a tool-specific directory). The `mv` commands below are best-effort — test in CI and verify binary locations before cutting an image. The OpenCode and Codex examples are deterministic.
-
-```dockerfile
-# Pre-seed popular AI coding tools into /usr/local/bin
-# Comment out any tools you don't want to ship.
-# Requires --build-arg GITHUB_TOKEN=... for the codex step.
-
-# OpenCode (deterministic — respects XDG_BIN_DIR)
-RUN XDG_BIN_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-
-# Codex CLI (no Node — uses gh; needs GitHub auth at build time)
-ARG GITHUB_TOKEN
-RUN ARCH=$(uname -m) \
-    && case "${ARCH}" in \
-         x86_64)  ASSET="codex-x86_64-unknown-linux-musl.tar.gz" ;; \
-         aarch64) ASSET="codex-aarch64-unknown-linux-musl.tar.gz" ;; \
-         *)       echo "Unsupported arch: ${ARCH}" && exit 1 ;; \
-       esac \
-    && GITHUB_TOKEN="${GITHUB_TOKEN}" gh release download -R openai/codex -p "${ASSET}" -D /tmp \
-    && tar -xzf "/tmp/${ASSET}" -C /usr/local/bin \
-    && mv "/usr/local/bin/${ASSET%.tar.gz}" /usr/local/bin/codex \
-    && rm "/tmp/${ASSET}"
-
-# Aider (Python package — pip installs to /usr/local/bin, world-readable)
-RUN pip install aider-chat
-
-# Cursor Agent (best-effort — curl installer location may vary)
-# RUN curl -fsS https://cursor.com/install | bash \
-#     && (mv ~/.local/bin/agent /usr/local/bin/agent 2>/dev/null \
-#         || mv agent /usr/local/bin/agent 2>/dev/null \
-#         || echo "⚠  agent binary not found — check installer output")
-
-# Claude Code (best-effort — same caveat)
-# RUN curl -fsSL https://claude.ai/install.sh | bash \
-#     && (mv ~/.local/bin/claude /usr/local/bin/claude 2>/dev/null \
-#         || mv claude /usr/local/bin/claude 2>/dev/null \
-#         || echo "⚠  claude binary not found — check installer output")
-```
-
-**Build with:** `docker build --build-arg GITHUB_TOKEN="$(gh auth token)" -t astroai/base:latest .`
-
-**Trade-offs to consider:**
-
-- **Image size**: Each tool adds ~20–80 MB. All 7 tools add roughly 300–500 MB to the base image. Pre-seeding 2–3 popular tools (e.g., `claude`, `codex`, `aider`) balances startup speed against image bloat.
-- **Update cadence**: AI tools release frequently (weekly). Baked-in binaries are frozen at build time — users still need `astroai-install` (or the tool's own update command) to get the latest version. Pre-seeding gives them a working starting point.
-- **Licensing**: Each tool has its own license. Pre-seeding only installs the binary — user accounts and API keys are still required at runtime.
-- **Multi-arch**: Codex has separate tarballs for x86_64 and aarch64. Multi-arch image builds need conditional logic (shown above) or separate Dockerfiles.
-
-**Recommendation**: Pre-seed nothing by default. Tools install once to `/arc` and persist, so the cost is paid only on first use per user. If the user base strongly prefers zero-setup, pre-seed 2–3 tools and document that `astroai-install` fetches the latest version.
+**Recommendation:** Pre-seed nothing by default. Tools install once to `/arc` via `astroai-install` and persist; baking agents adds ~300–500 MB and freezes weekly-moving binaries at build time. If a site needs zero-setup, pre-seed 2–3 audited tools in `dockerfiles/base/Dockerfile` and document that `astroai-install` still fetches the latest version.
 
 ### Freebuff and Node.js
 

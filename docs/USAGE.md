@@ -432,100 +432,9 @@ astroai-install --list            # see all available tools
 | [OpenCode](https://dev.opencode.ai/docs/) | `opencode` | curl script (or npm) | Optional |
 | [Codex CLI](https://openai-codex.mintlify.app/installation) | `codex` | npm or `gh release download` | npm path only |
 | [Freebuff](https://freebuff.com/) | `freebuff` | npm | Yes |
+| [Aider](https://aider.chat/) | `aider` | `uv tool install` | No |
 
-### One-time setup (all curl-installed agents)
-
-```bash
-mkdir -p ~/.local/bin
-# PATH already includes ~/.local/bin in AstroAI sessions; open a new shell if needed
-hash -r
-```
-
-### Cursor Agent
-
-```bash
-curl -fsS https://cursor.com/install | bash
-agent --version
-agent auth                       # or set CURSOR_API_KEY
-agent                            # interactive session
-agent update                     # manual upgrade
-```
-
-### Claude Code
-
-```bash
-curl -fsSL https://claude.ai/install.sh | bash
-claude --version
-claude                           # sign in on first run
-```
-
-Native install auto-updates in the background. Prefer this over the deprecated npm package `@anthropic-ai/claude-code`.
-
-### Antigravity CLI (Google)
-
-Replacement for Gemini CLI (deprecated June 2026). Free tier via Google account.
-
-```bash
-curl -fsSL https://antigravity.google/cli/install.sh | bash
-agy --version
-agy                              # sign in on first run
-agy update                       # manual upgrade
-```
-
-### OpenCode
-
-Prefer the curl installer (no Node). npm package name is `opencode-ai`, not `opencode`.
-
-```bash
-# Recommended — native binary
-curl -fsSL https://opencode.ai/install | bash
-opencode --version
-
-# Alternative — needs Node (see below)
-npm install -g opencode-ai@latest
-```
-
-Force install dir to `~/.local/bin` if the script picks another path:
-
-```bash
-XDG_BIN_DIR="$HOME/.local/bin" curl -fsSL https://opencode.ai/install | bash
-```
-
-### Codex CLI (OpenAI)
-
-**Option A — npm** (needs Node 16+; package is `@openai/codex`, not `codex`):
-
-```bash
-# after pixi nodejs setup (see Node.js section)
-pixi run npm install -g @openai/codex
-codex --version
-codex login
-```
-
-**Option B — prebuilt binary via `gh`** (no Node; good default on AstroAI):
-
-```bash
-# pick the musl tarball matching your arch (x86_64 shown; arm64: codex-aarch64-unknown-linux-musl.tar.gz)
-gh release download -R openai/codex -p 'codex-x86_64-unknown-linux-musl.tar.gz' -D /tmp
-tar -xzf /tmp/codex-x86_64-unknown-linux-musl.tar.gz -C ~/.local/bin
-mv ~/.local/bin/codex-x86_64-unknown-linux-musl ~/.local/bin/codex
-codex --version
-codex login
-```
-
-List available assets: `gh release view -R openai/codex --json assets`.
-
-### Freebuff
-
-npm-only. Requires Node — see [Node.js and npm](#nodejs-and-npm).
-
-```bash
-npm install -g freebuff
-freebuff --version
-cd /scratch/myproject && freebuff
-```
-
-If a published npm version fails at runtime, check [CodebuffAI/codebuff issues](https://github.com/CodebuffAI/codebuff/issues) or install from source with `gh repo clone CodebuffAI/codebuff`.
+Per-tool curl/npm/gh steps live in `astroai-install --list` and in the script output when you run `astroai-install <tool>`. Prefer those over copying commands from docs — vendors change install URLs often.
 
 ### Pair agents with `gh` and search tools
 
@@ -540,15 +449,6 @@ bat README.md
 gh pr list                        # context for the agent
 gh issue list
 ```
-
-**Aider** (Python agent via uv — no Node):
-
-```bash
-uv tool install aider-chat
-aider --help
-```
-
-(`UV_TOOL_DIR` / `UV_TOOL_BIN_DIR` are set in `/etc/profile.d/astroai.sh`.)
 
 Re-run installers when a tool publishes an update, or use each tool's built-in update command (`agent update`, `agy update`, etc.).
 

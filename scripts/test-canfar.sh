@@ -117,14 +117,17 @@ if ! canfar auth show >/dev/null 2>&1; then
 fi
 
 session_status() {
-    local sid="$1"
+    canfar_ps_field id "$1" status
+}
+
+canfar_ps_field() {
+    local match_key="$1" match_val="$2" want_field="$3"
     canfar ps -a --json 2>/dev/null | python3 -c "
 import json, sys
 
-target = sys.argv[1]
+match_key, match_val, want_field = sys.argv[1:4]
 raw = sys.stdin.read().strip()
 if not raw:
-    print('')
     raise SystemExit(0)
 for marker in ('[', '{'):
     idx = raw.find(marker)
@@ -134,15 +137,16 @@ for marker in ('[', '{'):
 try:
     rows = json.loads(raw)
 except json.JSONDecodeError:
-    print('')
     raise SystemExit(0)
 if isinstance(rows, dict):
     rows = [rows]
 for row in rows:
-    if row.get('id') == target:
-        print(row.get('status', ''))
+    if row.get(match_key) == match_val:
+        val = row.get(want_field, '')
+        if val:
+            print(val)
         break
-" "${sid}" || true
+" "${match_key}" "${match_val}" "${want_field}" || true
 }
 
 cleanup() {
@@ -161,7 +165,7 @@ echo "  timeout: ${TIMEOUT}s"
 echo ""
 
 # Harbor project is public — try without registry auth first (Science Portal path).
-# Skaha headless API may still reject astroai/* until catalogued; retry with docker login creds.
+# ponytail: retry with docker login creds → remove when Skaha catalogs public astroai/* pulls
 maybe_registry_auth
 
 CREATE_RC=0
@@ -192,31 +196,7 @@ SESSION_ID="$(
         | awk '{print $1}'
 )"
 if [[ -z "${SESSION_ID}" ]]; then
-    SESSION_ID="$(
-        canfar ps -a --json 2>/dev/null | python3 -c "
-import json, sys
-
-name = sys.argv[1]
-raw = sys.stdin.read().strip()
-if not raw:
-    raise SystemExit(0)
-for marker in ('[', '{'):
-    idx = raw.find(marker)
-    if idx >= 0:
-        raw = raw[idx:]
-        break
-try:
-    rows = json.loads(raw)
-except json.JSONDecodeError:
-    raise SystemExit(0)
-if isinstance(rows, dict):
-    rows = [rows]
-for row in rows:
-    if row.get('name') == name:
-        print(row.get('id', ''))
-        break
-" "${SESSION_NAME}" || true
-    )"
+    SESSION_ID="$(canfar_ps_field name "${SESSION_NAME}" id)"
 fi
 if [[ -z "${SESSION_ID}" ]]; then
     echo "Could not parse session ID from canfar create output." >&2

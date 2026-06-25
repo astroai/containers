@@ -20,7 +20,7 @@ export JUPYTER_RUNTIME_DIR="${TMPDIR:-/tmp}/jupyter-runtime"
 export JUPYTER_DATA_DIR="${TMPDIR:-/tmp}/jupyter-data"
 mkdir -p "${JUPYTER_RUNTIME_DIR}" "${JUPYTER_DATA_DIR}"
 
-# notebook_shim still reads legacy NotebookApp keys from persisted ~/.jupyter on /arc/home.
+# ponytail: quarantine legacy ~/.jupyter keys every startup → drop when platform stops writing NotebookApp to /arc/home
 if [[ -d "${HOME}/.jupyter" ]]; then
     _legacy_dir="${HOME}/.jupyter.astroai-legacy"
     shopt -s nullglob

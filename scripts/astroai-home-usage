@@ -49,7 +49,7 @@ total_h="$(numfmt --to=iec-i --suffix=B "${total}" 2>/dev/null || du -sh "${HOME
 echo "Tracked profile dirs: ~${total_h}"
 
 # Show quota percentage summary
-_pct="$(df "${HOME}" 2>/dev/null | awk 'NR>1 {used=$3; size=$2; if(size>0) printf "%.0f", (used/size)*100; else print 0}')"
+_pct="$(astroai_quota_used_pct "${HOME}")"
 if [[ -n "${_pct}" ]]; then
     if [[ "${_pct}" -ge 95 ]]; then
         echo "Quota:  ${_pct}% used ⚠ CRITICAL — prune immediately"

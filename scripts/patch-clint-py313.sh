@@ -1,4 +1,5 @@
 #!/bin/bash
+# ponytail: sed patch for unmaintained clint → remove when cadcdata drops/fixes clint
 # Fix clint SyntaxWarnings on Python 3.12+ (unmaintained dependency of cadcdata).
 set -euo pipefail
 

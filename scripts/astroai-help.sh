@@ -24,7 +24,6 @@ Home hygiene (shared CephFS)
   astroai-debug --stdout       print only (no file save)
 
 Project workflow
-  astroai-clone owner/repo       clone + auto-install on /scratch
   astroai-project-init <name> create team workspace on /arc/projects
   pixi install / uv sync      deps into project (not system image)
   astroai-session-archive     git push + env save + summary (--force, --name)

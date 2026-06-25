@@ -44,9 +44,7 @@ else
     echo "gpu:   not visible (CPU node or no driver)"
 fi
 
-kind=""
-[[ -f pixi.toml ]] && kind="pixi"
-[[ -f pyproject.toml && -z "${kind}" ]] && kind="uv"
+kind="$(astroai_detect_project)"
 [[ -n "${kind}" ]] && echo "project: ${kind} ($(basename "${PWD}"))" || echo "project: none (cd /scratch && pixi init)"
 
 if command -v uv >/dev/null 2>&1; then
@@ -85,18 +83,8 @@ echo "disk:"
 # Quota-aware lines for scratch and home
 astroai_quota_line /scratch scratch
 astroai_quota_line "${HOME}" "home"
-# Project quota (if inside a project)
-if [[ -d /arc/projects ]]; then
-    _proj="${PWD}"
-    while [[ "${_proj}" != "/" && "${_proj}" != "/arc/projects" ]]; do
-        _parent="$(dirname "${_proj}")"
-        if [[ "${_parent}" == /arc/projects ]]; then
-            astroai_quota_line "${_proj}" "project"
-            break
-        fi
-        _proj="${_parent}"
-    done
-fi
+_proj="$(astroai_find_arc_project_root)"
+[[ -n "${_proj}" ]] && astroai_quota_line "${_proj}" "project"
 
 echo ""
 echo "commands: astroai-help | astroai-home-usage | astroai-env-list"

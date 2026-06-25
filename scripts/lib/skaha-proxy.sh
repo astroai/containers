@@ -13,12 +13,3 @@ astroai_skaha_base_url() {
         *)        echo "/session/contrib/${session_id}" ;;
     esac
 }
-
-# Resolve session id and mode from Skaha launch (notebook passes $1; contributed sets env).
-astroai_skaha_session() {
-    if [[ -n "${1:-}" ]]; then
-        echo "notebook ${1}"
-    elif [[ -n "${skaha_sessionid:-}" ]]; then
-        echo "contrib ${skaha_sessionid}"
-    fi
-}

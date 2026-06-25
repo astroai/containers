@@ -7,6 +7,7 @@
 #   astroai-debug --file path  save to custom path (and print to stdout)
 
 [[ -f /etc/profile.d/astroai.sh ]] && source /etc/profile.d/astroai.sh
+source /opt/astroai/lib/astroai-env-common.sh
 
 SAVE=1
 SAVE_PATH=""
@@ -99,9 +100,7 @@ for tool in git gh uv pixi python3 nvidia-smi nvtop htop jq rg fd bat fzf delta 
 done
 
 section "Project"
-KIND=""
-[[ -f pixi.toml ]] && KIND="pixi"
-[[ -f pyproject.toml && -z "${KIND}" ]] && KIND="uv"
+KIND="$(astroai_detect_project)"
 if [[ -n "${KIND}" ]]; then
     echo "type:     ${KIND}"
     echo "dir:      $(basename "${PWD}")"
