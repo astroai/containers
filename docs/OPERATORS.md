@@ -15,6 +15,27 @@ Register and publish AstroAI images on the CANFAR Science Platform.
 
 Each image carries `io.canfar.skaha.session.type` in its OCI labels (`headless`, `contributed`, or `notebook`) for Harbor inventory.
 
+## Harbor registry (public project)
+
+Images live at `images.canfar.net/astroai/<image>:<tag>`. The **`astroai` Harbor project must be public** so CANFAR Skaha and Science Portal users can pull session images without registry credentials.
+
+In Harbor (`https://images.canfar.net`):
+
+1. Open project **astroai** → **Configuration**.
+2. Set **Access Level** to **Public**.
+3. Confirm anonymous pull works (no `docker login` required):
+
+```bash
+docker logout images.canfar.net 2>/dev/null || true
+docker pull images.canfar.net/astroai/base:latest
+```
+
+Push still requires maintainer credentials (`docker login images.canfar.net`). Only **pull** is anonymous.
+
+**Skaha note:** Harbor public pull works for `docker pull`, but `canfar create` with `astroai/*` images may still require `canfar config set registry.*` (Harbor username + CLI secret) for headless maintainer tests until the platform catalogs the project. Science Portal session launches for registered image types do not require users to configure registry auth.
+
+`test-canfar.sh` tries without registry credentials first, then retries with `docker login` credentials if present.
+
 Build and push:
 
 ```bash
@@ -113,7 +134,7 @@ make build/notebook
 
 ## Post-push verification on CANFAR (headless)
 
-After pushing to Harbor, run a headless Skaha session that executes `canfar-verify.sh` inside the image. Requires the [canfar CLI](https://opencadc.github.io/canfar/) authenticated (`canfar auth login`) and **Harbor pull credentials** for `images.canfar.net` (private project). The test script reads `~/.docker/config.json` automatically after `docker login images.canfar.net`, or accepts `CANFAR_REGISTRY__USERNAME` / `CANFAR_REGISTRY__SECRET`.
+After pushing to Harbor, run a headless Skaha session that executes `canfar-verify.sh` inside the image. Requires the [canfar CLI](https://opencadc.github.io/canfar/) authenticated (`canfar auth login`). Harbor pull auth is **not** required when the `astroai` project is public (see [Harbor registry](#harbor-registry-public-project)).
 
 ```bash
 make push/base TAG=26.06

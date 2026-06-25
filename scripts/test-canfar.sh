@@ -12,8 +12,9 @@
 #   REGISTRY   default images.canfar.net
 #   OWNER      default astroai
 #   CANFAR_TEST_TIMEOUT  seconds to wait for session (default 600)
-#   CANFAR_REGISTRY__USERNAME / CANFAR_REGISTRY__SECRET  Harbor pull creds
-#   REGISTRY_USER / REGISTRY_PASSWORD  alternate Harbor cred env names
+#
+# Harbor images are public — no registry credentials for normal pulls.
+# Optional: CANFAR_REGISTRY__* / REGISTRY_USER for maintainer headless smoke tests.
 
 IMAGE="${1:-base}"
 TAG="${2:-${TAG:-latest}}"
@@ -23,9 +24,10 @@ TIMEOUT="${CANFAR_TEST_TIMEOUT:-600}"
 FULL_IMAGE="${REGISTRY}/${OWNER}/${IMAGE}:${TAG}"
 SESSION_NAME="astroai-verify-${IMAGE}-${TAG}-$(date -u +%Y%m%d%H%M%S)"
 
-ensure_registry_auth() {
+maybe_registry_auth() {
     if [[ -n "${CANFAR_REGISTRY__USERNAME:-}" && -n "${CANFAR_REGISTRY__SECRET:-}" ]]; then
         export CANFAR_REGISTRY__URL="${CANFAR_REGISTRY__URL:-https://${REGISTRY}}"
+        echo "Using Harbor credentials from environment (user: ${CANFAR_REGISTRY__USERNAME})"
         return 0
     fi
 
@@ -33,26 +35,19 @@ ensure_registry_auth() {
         export CANFAR_REGISTRY__USERNAME="${REGISTRY_USER}"
         export CANFAR_REGISTRY__SECRET="${REGISTRY_PASSWORD}"
         export CANFAR_REGISTRY__URL="${CANFAR_REGISTRY__URL:-https://${REGISTRY}}"
+        echo "Using Harbor credentials from REGISTRY_USER (user: ${CANFAR_REGISTRY__USERNAME})"
         return 0
     fi
 
-    local configured_user
-    configured_user="$(canfar config get registry.username 2>/dev/null | tail -1 || true)"
-    if [[ -n "${configured_user}" && "${configured_user}" != "null" ]]; then
-        return 0
-    fi
+    unset CANFAR_REGISTRY__USERNAME CANFAR_REGISTRY__SECRET CANFAR_REGISTRY__URL
+}
 
+load_docker_registry_auth() {
     local docker_cfg="${HOME}/.docker/config.json"
-    if [[ ! -f "${docker_cfg}" ]]; then
-        echo "Harbor credentials required for private image ${FULL_IMAGE}." >&2
-        echo "Set CANFAR_REGISTRY__USERNAME and CANFAR_REGISTRY__SECRET, or:" >&2
-        echo "  canfar config set registry.username <user>" >&2
-        echo "  canfar config set registry.secret <token>" >&2
-        echo "  canfar config set registry.url https://${REGISTRY}" >&2
-        exit 1
-    fi
+    [[ -f "${docker_cfg}" ]] || return 1
 
-    if ! mapfile -t _reg_creds < <(
+    local _creds=()
+    mapfile -t _creds < <(
         python3 - "${REGISTRY}" "${docker_cfg}" <<'PY'
 import base64
 import json
@@ -68,20 +63,47 @@ elif entry.get("username") and entry.get("password"):
     user, secret = entry["username"], entry["password"]
 else:
     sys.exit(1)
+if not user or not secret:
+    sys.exit(1)
 print(user)
 print(secret)
 PY
-    ) || [[ ${#_reg_creds[@]} -lt 2 ]]; then
-        echo "Could not read Harbor credentials from ${docker_cfg} for ${REGISTRY}." >&2
-        echo "Log in with: docker login ${REGISTRY}" >&2
-        exit 1
-    fi
+    ) || return 1
+    [[ ${#_creds[@]} -ge 2 ]] || return 1
 
-    CANFAR_REGISTRY__USERNAME="${_reg_creds[0]}"
-    CANFAR_REGISTRY__SECRET="${_reg_creds[1]}"
-    export CANFAR_REGISTRY__USERNAME CANFAR_REGISTRY__SECRET
+    export CANFAR_REGISTRY__USERNAME="${_creds[0]}"
+    export CANFAR_REGISTRY__SECRET="${_creds[1]}"
     export CANFAR_REGISTRY__URL="${CANFAR_REGISTRY__URL:-https://${REGISTRY}}"
-    echo "Using Harbor credentials for ${REGISTRY} (user: ${CANFAR_REGISTRY__USERNAME})"
+    echo "Retrying with Harbor credentials from docker login (user: ${CANFAR_REGISTRY__USERNAME})"
+}
+
+is_registry_auth_error() {
+    printf '%s\n' "$1" | grep -qiE 'No authentication provided|private image|registry.auth|Registry-Auth'
+}
+
+create_headless_session() {
+    canfar create --name "${SESSION_NAME}" headless "${FULL_IMAGE}" -- \
+        bash /opt/astroai/bin/canfar-verify.sh 2>&1
+}
+
+registry_auth_hint() {
+    cat >&2 <<EOF
+Harbor could not pull ${FULL_IMAGE} through Skaha without registry authentication.
+
+Confirm the astroai Harbor project is **public** (anonymous docker pull works):
+  docker logout ${REGISTRY}; docker pull ${FULL_IMAGE}
+
+Science Portal session launches use registered images and do not require users to
+configure registry credentials. Headless canfar create for maintainer smoke tests may
+still need Harbor CLI credentials until Skaha catalogs astroai/* images:
+
+  canfar config set registry.username <harbor-user>
+  canfar config set registry.secret <harbor-cli-secret>
+  canfar config set registry.url https://${REGISTRY}
+
+Maintainers with docker login ${REGISTRY} can retry — test-canfar.sh will auto-load
+those credentials on the second attempt.
+EOF
 }
 
 if ! command -v canfar >/dev/null 2>&1; then
@@ -93,8 +115,6 @@ if ! canfar auth show >/dev/null 2>&1; then
     echo "canfar is not authenticated. Run: canfar auth login" >&2
     exit 1
 fi
-
-ensure_registry_auth
 
 session_status() {
     local sid="$1"
@@ -140,14 +160,27 @@ echo "  name:    ${SESSION_NAME}"
 echo "  timeout: ${TIMEOUT}s"
 echo ""
 
-CREATE_OUT="$(
-    canfar create --name "${SESSION_NAME}" headless "${FULL_IMAGE}" -- \
-        bash /opt/astroai/bin/canfar-verify.sh 2>&1
-)" || {
+# Harbor project is public — try without registry auth first (Science Portal path).
+# Skaha headless API may still reject astroai/* until catalogued; retry with docker login creds.
+maybe_registry_auth
+
+CREATE_RC=0
+CREATE_OUT="$(create_headless_session)" || CREATE_RC=$?
+if [[ "${CREATE_RC}" -ne 0 ]]; then
+    if is_registry_auth_error "${CREATE_OUT:-}" && load_docker_registry_auth; then
+        CREATE_RC=0
+        CREATE_OUT="$(create_headless_session)" || CREATE_RC=$?
+    fi
+fi
+if [[ "${CREATE_RC}" -ne 0 ]]; then
     echo "${CREATE_OUT}" >&2
+    if is_registry_auth_error "${CREATE_OUT:-}"; then
+        echo "" >&2
+        registry_auth_hint
+    fi
     echo "Failed to create headless session." >&2
     exit 1
-}
+fi
 
 echo "${CREATE_OUT}"
 

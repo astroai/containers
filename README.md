@@ -49,7 +49,7 @@ make build/notebook
 
 ## Push to Harbor
 
-Maintainers only — see [OPERATORS.md](docs/OPERATORS.md).
+Maintainers only — see [OPERATORS.md](docs/OPERATORS.md). The `astroai` Harbor project is **public** (anonymous pull); push still needs `docker login`.
 
 ```bash
 make build/vscode
