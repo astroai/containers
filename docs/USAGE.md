@@ -6,7 +6,7 @@ How to work in AstroAI sessions on the [CANFAR Science Platform](https://www.can
 |-----|----------|
 | **USAGE.md** (this file) | Session users — quickstart, storage, GPU, tools |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Developers changing this repo |
-| [OPERATORS.md](OPERATORS.md) | Platform admins — Harbor push, portal registration |
+| [OPERATORS.md](OPERATORS.md) | AstroAI maintainers — build, push, register images on CANFAR |
 | [README.md](../README.md) | Repo overview and build commands |
 
 ## First five minutes (quick feedback loop)

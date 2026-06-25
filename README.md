@@ -21,7 +21,7 @@ Licensed under [BSD-2-Clause](LICENSE).
 |-----|----------|
 | [docs/USAGE.md](docs/USAGE.md) | **Session users** — quickstart, `gh`, storage, GPU, pixi/uv, AI CLI install |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | **Developers** — clone, build, test, open PRs |
-| [docs/OPERATORS.md](docs/OPERATORS.md) | **Platform admins** — Harbor push, Science Portal registration |
+| [docs/OPERATORS.md](docs/OPERATORS.md) | **AstroAI maintainers** — build, push, register images on CANFAR (not CANFAR platform ops) |
 
 In-session: `astroai-help` · `less /opt/astroai/USAGE.md`
 

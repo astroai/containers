@@ -10,7 +10,7 @@ Licensed under [BSD-2-Clause](../LICENSE).
 |-----|----------------|
 | [USAGE.md](USAGE.md) | **Session users** — working on CANFAR (`/scratch`, pixi/uv, GPU, AI CLIs) |
 | **CONTRIBUTING.md** (this file) | **Developers** — changing this repo |
-| [OPERATORS.md](OPERATORS.md) | **Platform admins** — Harbor push, Science Portal registration |
+| [OPERATORS.md](OPERATORS.md) | **AstroAI maintainers** — build, push, register images on CANFAR |
 | [README.md](../README.md) | Repo overview, build targets, design principles |
 
 In a running session: `less /opt/astroai/USAGE.md` (after the next image release).

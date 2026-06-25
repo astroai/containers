@@ -85,8 +85,11 @@ RUN mkdir -p /opt/astroai/{bin,cache,lib,venv} /cadc \
     && chmod -R a+rwx /opt/astroai
 
 COPY config/cadc-tools.txt /opt/astroai/cadc-tools.txt
+COPY scripts/patch-clint-py313.sh /tmp/patch-clint-py313.sh
 RUN uv venv /opt/astroai/venv/cadc \
     && uv pip install --python /opt/astroai/venv/cadc -r /opt/astroai/cadc-tools.txt \
+    && bash /tmp/patch-clint-py313.sh /opt/astroai/venv/cadc \
+    && rm /tmp/patch-clint-py313.sh \
     && chmod -R a+rX /opt/astroai/venv/cadc
 
 COPY scripts/lib/astroai-env-common.sh scripts/lib/skaha-proxy.sh /opt/astroai/lib/

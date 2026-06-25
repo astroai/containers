@@ -81,7 +81,12 @@ astroai_quota_line() {
 }
 
 # Run quota warnings for relevant paths at session start.
+# Skip when stderr is not a TTY (CANFAR session logs capture startup stderr).
 astroai_quota_startup_check() {
+    if [[ ! -t 2 ]]; then
+        return 0
+    fi
+
     local warned=0
 
     # Home quota (always relevant)

@@ -1,6 +1,13 @@
-# Operator guide
+# Publishing & registration guide
 
-Register and publish AstroAI images on the CANFAR Science Platform.
+For **AstroAI project maintainers** who build, push, and register `images.canfar.net/astroai/*` session images on the CANFAR Science Platform.
+
+**Not for CANFAR platform admins.** Skaha deployment, Helm charts, and launch scripts live in [opencadc/science-platform](https://github.com/opencadc/science-platform). This repo has **no write access** there — only image build/push and Science Portal registration within the `astroai` Harbor project. Platform changes are **feature requests or bug reports** to the CANFAR/science-platform team.
+
+| Role | Scope | Where |
+|------|--------|--------|
+| **AstroAI maintainer** (this doc) | Build, push, register images; smoke-test on CANFAR | astroai-containers, Harbor `astroai/`, Science Portal |
+| **CANFAR platform admin** | Skaha Helm, launch scripts, ingress, cluster config | opencadc/science-platform |
 
 ## Images and session types
 
@@ -46,6 +53,35 @@ make push/webterm TAG=26.06
 
 Do **not** register `base` as a Science Portal session — it is the shared parent layer.
 
+## CANFAR platform boundary ([opencadc/science-platform](https://github.com/opencadc/science-platform))
+
+Skaha session Jobs are rendered from Helm templates under `helm/skaha-config/`. Shared launch scripts live in `helm/launch-scripts/` and are mounted via `helm/templates/launch-scripts-configmap.yaml` at `/skaha-system/`. **AstroAI maintainers cannot change these** — use this section to know what is image-side vs what to request from CANFAR ops.
+
+**What AstroAI controls vs what CANFAR platform controls:**
+
+| Session type | Helm template | Container command | AstroAI `/skaha/startup.sh` runs? | Log/startup notes |
+|--------------|---------------|-------------------|-----------------------------------|-------------------|
+| **Contributed** (webterm, vscode, marimo) | `launch-contributed.yaml` | Image `CMD` (not overridden) | **Yes** | Image fixes apply (`common-init`, `/scratch`, quiet quota on non-TTY, etc.) |
+| **Notebook** | `launch-notebook.yaml` | **`/skaha-system/start-jupyterlab.sh`** (platform ConfigMap) | **No** (unless helm override) | Platform script uses deprecated `--NotebookApp.*` CLI flags; sets `JUPYTER_*` under `/arc/home` |
+| **Headless** | `launch-headless.yaml` | User command / image `CMD` | Depends on image | Used for maintainer smoke tests (`test-canfar.sh`) |
+
+Stock platform notebook launcher (`helm/launch-scripts/start-jupyterlab.sh`):
+
+```bash
+jupyter lab \
+  --NotebookApp.base_url=session/notebook/"$1" \
+  --NotebookApp.notebook_dir=/ \
+  --NotebookApp.allow_origin="*" \
+  --ServerApp.base_url=session/notebook/"$1" \
+  ...
+```
+
+That script is **not in astroai-containers** — Jupyter `NotebookApp → ServerApp` migration warnings, `root_dir=/`, and missing `common-init` on notebook sessions are **CANFAR platform behaviour** until the science-platform team changes `launch-notebook.yaml` or modernizes `start-jupyterlab.sh`.
+
+**Contributed sessions:** ingress path stripping is platform-defined (`ingress-contributed.yaml`); listen on `/` and set proxy URL flags in our startup scripts — do not fight the platform path model.
+
+**Do not try to paper over platform notebook startup in the image alone** — `launch-notebook.yaml` overrides `command`/`args` and mounts `/skaha-system`. Image-side `startup-notebook.sh` only runs if CANFAR platform ops apply a launch override (see below).
+
 ## Contributed sessions (webterm, vscode, marimo)
 
 Register as **Contributed** in the Science Portal.
@@ -60,17 +96,29 @@ Register as **Contributed** in the Science Portal.
 
 Register `images.canfar.net/astroai/notebook:<tag>` as a **Notebook** session type.
 
-- Session ID is passed as the **first argument** to `/skaha/startup.sh`
-- `JUPYTER_TOKEN` is also set to the session ID (platform default)
+**Default (stock science-platform):** Skaha runs `/skaha-system/start-jupyterlab.sh` — not AstroAI `startup-notebook.sh`. Expect:
+
+- `NotebookApp` deprecation warnings in session logs (harmless; from platform CLI flags)
+- Jupyter `root_dir` / `notebook_dir` = `/` (platform script), not `/scratch`
+- No AstroAI `common-init` (welcome banner, cache dirs, quota check)
+- `JUPYTER_CONFIG_DIR`, `JUPYTER_PATH`, etc. pointed at `/arc/home/.../.jupyter/` by `launch-notebook.yaml`
+
+**With helm override (recommended for AstroAI notebook):**
+
+- Session ID passed as the **first argument** to `/skaha/startup.sh`
+- `JUPYTER_TOKEN` also set to the session ID (platform default)
 - Reverse-proxy path: `/session/notebook/<session-id>/`
 - Container listens on port **8888**
 - Jupyter `base_url`: `session/notebook/<session-id>` (matches platform convention)
+- AstroAI `common-init`, `/scratch` cwd, `/etc/jupyter` config
 
-### Launch template override (required)
+### Requesting CANFAR platform changes (notebook)
 
-The stock Skaha notebook job runs `/skaha-system/start-jupyterlab.sh` from a ConfigMap. That script skips AstroAI session setup (`common-init`, `/scratch` cwd, cache dirs).
+The stock notebook job in `helm/skaha-config/launch-notebook.yaml` runs `/skaha-system/start-jupyterlab.sh` from the launch-scripts ConfigMap. That script skips AstroAI session setup.
 
-**Override the container command** for AstroAI notebook images:
+**File an issue or feature request** with the CANFAR/science-platform team. Example asks:
+
+1. **Per-image launch override** — run AstroAI notebook images with `/skaha/startup.sh` instead of `/skaha-system/start-jupyterlab.sh`:
 
 ```yaml
 containers:
@@ -85,7 +133,21 @@ containers:
     name: notebook-port
 ```
 
-Remove or replace the `start-jupyterlab` ConfigMap volume mount when using this override.
+(Remove or replace the `start-jupyterlab` ConfigMap volume mount when using this override.)
+
+2. **Upstream launcher fix** (benefits all notebook images) — modernize `helm/launch-scripts/start-jupyterlab.sh` to use `--ServerApp.*` only instead of deprecated `--NotebookApp.*` flags.
+
+## Session log expectations (CANFAR console)
+
+When reviewing `canfar logs`, distinguish platform noise from image issues:
+
+| Source | Examples | Fixable in astroai-containers? |
+|--------|----------|--------------------------------|
+| **Platform notebook launcher** | `NotebookApp` migration warnings; `root_dir=/` | No — science-platform `start-jupyterlab.sh` |
+| **Image (contributed)** | Quota banner, CADC `SyntaxWarning`, verify job-control spam | Yes — shipped in `26.06+` |
+| **Upstream apps** | ttyd `__lws_lc_*` INFO; OpenVSCode reconnection grace message | No — harmless INFO |
+
+Contributed session log audits should target **errors/failures** and AstroAI startup lines; notebook log audits on stock CANFAR should expect the three Jupyter migration warnings until the science-platform team updates the launcher.
 
 ## Image entrypoints
 
@@ -106,11 +168,11 @@ Contributed images listen on port **5000**. The Skaha ingress **strips** `/sessi
 
 Notebook sessions are different: ingress does **not** strip the path, so Jupyter `base_url` must be `session/notebook/<session-id>`.
 
-## Science Portal checklist
+## Science Portal checklist (AstroAI maintainer)
 
 1. Push session images to `images.canfar.net/astroai/` with a version tag (e.g. `26.06`).
 2. Register **Contributed** types for `webterm`, `vscode`, `marimo` — port **5000**.
-3. Register **Notebook** type for `notebook` — port **8888**, with launch override above.
+3. Register **Notebook** type for `notebook` — port **8888**. (Optional: ask CANFAR platform ops for the launch override above so `startup-notebook.sh` runs.)
 4. Do not expose `base` as an interactive session.
 5. Document the tag policy for users (monthly `YY.MM`; avoid `latest` in production).
 

@@ -18,6 +18,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 failures=0
+login_shell() {
+    bash -lc "$@"
+}
+
 check() {
     local label="$1"
     shift
@@ -33,25 +37,26 @@ echo "AstroAI image verification"
 echo "=========================="
 
 check "astroai-profile on PATH" bash -lc '[[ ":${PATH}:" == *":/opt/astroai/venv/cadc/bin:"* ]]'
-check "login shell: canfar" bash -lic 'command -v canfar >/dev/null'
-check "login shell: cadcget" bash -lic 'command -v cadcget >/dev/null'
-check "login shell: cadc-tap" bash -lic 'command -v cadc-tap >/dev/null'
-check "login shell: vcp" bash -lic 'command -v vcp >/dev/null'
-check "login shell: astroai-help" bash -lic 'command -v astroai-help >/dev/null'
+check "login shell: canfar" login_shell 'command -v canfar >/dev/null'
+check "login shell: cadcget" login_shell 'command -v cadcget >/dev/null'
+check "login shell: cadc-tap" login_shell 'command -v cadc-tap >/dev/null'
+check "login shell: vcp" login_shell 'command -v vcp >/dev/null'
+check "login shell: astroai-help" login_shell 'command -v astroai-help >/dev/null'
 
 for tool in gh rg fd bat fzf uv pixi patch make file xxd hexdump lsof ss host ncdu shellcheck ctags; do
-    check "login shell: ${tool}" bash -lic "command -v ${tool} >/dev/null"
+    check "login shell: ${tool}" login_shell "command -v ${tool} >/dev/null"
 done
 
 if [[ "${QUICK}" -eq 0 ]]; then
-    check "interactive shell: canfar" bash -ic 'command -v canfar >/dev/null'
-    check "canfar CLI" bash -lic 'canfar --help >/dev/null 2>&1'
-    check "cadcget --help" bash -lic 'cadcget --help >/dev/null 2>&1'
-    check "rg search" bash -lic 'rg --version >/dev/null 2>&1'
-    check "file magic" bash -lic 'file /bin/bash | grep -q ELF'
-    if bash -lic 'command -v node >/dev/null'; then
-        check "node --version" bash -lic 'node --version >/dev/null 2>&1'
-        check "npm --version" bash -lic 'npm --version >/dev/null 2>&1'
+    check "interactive shell: canfar" bash -ic 'command -v canfar >/dev/null' </dev/null
+    check "canfar CLI" login_shell 'canfar --help >/dev/null 2>&1'
+    check "cadcget --help" login_shell 'cadcget --help >/dev/null 2>&1'
+    check "cadcget --version (no SyntaxWarning)" login_shell 'out=$(cadcget --version 2>&1); ! grep -q SyntaxWarning <<<"$out"'
+    check "rg search" login_shell 'rg --version >/dev/null 2>&1'
+    check "file magic" login_shell 'file /bin/bash | grep -q ELF'
+    if login_shell 'command -v node >/dev/null'; then
+        check "node --version" login_shell 'node --version >/dev/null 2>&1'
+        check "npm --version" login_shell 'npm --version >/dev/null 2>&1'
     fi
 fi
 

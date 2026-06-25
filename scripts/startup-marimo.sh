@@ -10,7 +10,7 @@ if [[ -n "${skaha_sessionid:-}" ]]; then
     BASE_URL_ARG=(--base-url "$(astroai_skaha_base_url "${skaha_sessionid}" contrib)")
 fi
 
-exec marimo --log-level INFO edit \
+exec marimo --log-level warn edit \
     --no-token \
     --port 5000 \
     --host 0.0.0.0 \
