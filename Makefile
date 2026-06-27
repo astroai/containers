@@ -43,8 +43,9 @@ push/%:
 	docker tag $(REGISTRY)/$(OWNER)/$(notdir $@):$(BUILD_TAG) $(REGISTRY)/$(OWNER)/$(notdir $@):latest
 	docker push $(REGISTRY)/$(OWNER)/$(notdir $@):latest
 
-test-local: ## local smoke test (webterm + login-shell PATH check)
+test-local: ## local smoke test (webterm + notebook PATH checks)
 	./scripts/test-local.sh webterm --verify-only
+	./scripts/test-local.sh notebook --verify-only
 
 test-canfar: ## post-push headless verification on CANFAR (IMAGE=base TAG=$(TAG))
 	./scripts/test-canfar.sh $(or $(IMAGE),base) $(TAG)

@@ -215,11 +215,12 @@ astroai_remove_kernel() {
 }
 
 astroai_list_kernels() {
-    local kernel_root="${HOME}/.local/share/jupyter/kernels"
     local found=0
+    local search_root meta name kind root at py status
 
     echo "AstroAI-linked Jupyter kernels:"
-    if [[ -d /scratch ]]; then
+    for search_root in /scratch "${HOME}"; do
+        [[ -d "${search_root}" ]] || continue
         while IFS= read -r meta; do
             found=1
             name="$(jq -r .kernelspec_name "${meta}")"
@@ -230,11 +231,11 @@ astroai_list_kernels() {
             status="ok"
             [[ -x "${py}" ]] || status="missing env (re-run astroai-kernel-register)"
             printf "  %-20s %-4s %s\n    %s\n    registered %s\n" "${name}" "${kind}" "${root}" "${status}" "${at}"
-        done < <(find /scratch -path '*/.astroai/kernel.json' 2>/dev/null | sort)
-    fi
+        done < <(find "${search_root}" -path '*/.astroai/kernel.json' 2>/dev/null | sort -u)
+    done
 
     if [[ "${found}" -eq 0 ]]; then
-        echo "  (none under /scratch — run astroai-kernel-register in a project)"
+        echo "  (none found — run astroai-kernel-register in a project)"
     fi
 
     echo ""

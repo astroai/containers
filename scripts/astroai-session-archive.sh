@@ -89,7 +89,8 @@ if [[ -n "${KIND}" ]]; then
     if [[ "${FORCE}" -eq 0 ]]; then
         astroai_info "Saving ${KIND} environment '${NAME}'..."
     fi
-    if /opt/astroai/bin/astroai-env-save "${NAME}"; then
+    _env_save="$(astroai_bin astroai-env-save)"
+    if "${_env_save}" "${NAME}"; then
         [[ "${FORCE}" -eq 0 ]] && astroai_ok "✓ env saved: ${NAME}"
         SAVED=1
     else

@@ -29,6 +29,11 @@ while [[ $# -gt 0 ]]; do
             sed -n '2,12p' "$0"
             exit 0
             ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            echo "Usage: astroai-project-init <name> [--members user1,user2]" >&2
+            exit 1
+            ;;
         *)
             NAME="$1"
             shift

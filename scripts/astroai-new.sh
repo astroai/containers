@@ -46,6 +46,10 @@ while [[ $# -gt 0 ]]; do
         *)
             if [[ -z "${NAME}" ]]; then
                 NAME="$1"
+            else
+                astroai_err "Unexpected extra argument: $1"
+                astroai_hint "Usage: astroai-new [name] [--uv] [--no-git] [--no-gh] [--astro]"
+                exit 1
             fi
             shift
             ;;
@@ -60,10 +64,17 @@ else
     TARGET="${HOME}/${NAME}"
 fi
 
-if [[ -d "${TARGET}" ]] && [[ -f "${TARGET}/pixi.toml" || -f "${TARGET}/pyproject.toml" ]]; then
-    astroai_err "Project already exists: ${TARGET}"
-    astroai_cmd "  cd ${TARGET} && pixi run python script.py"
-    exit 1
+if [[ -d "${TARGET}" ]]; then
+    if [[ -f "${TARGET}/pixi.toml" || -f "${TARGET}/pyproject.toml" ]]; then
+        astroai_err "Project already exists: ${TARGET}"
+        astroai_cmd "  cd ${TARGET} && pixi run python script.py"
+        exit 1
+    fi
+    if [[ -n "$(ls -A "${TARGET}" 2>/dev/null)" ]]; then
+        astroai_err "Directory exists and is not empty: ${TARGET}"
+        astroai_hint "Remove contents or pick a different name."
+        exit 1
+    fi
 fi
 
 # ── Create project directory ─────────────────────

@@ -168,22 +168,41 @@ __astroai_quota_reminder() {
     printf '\n  %b⚠  home: %d%% used (%s) — astroai-cache-prune --all-safe%b\n\n' "${_color}" "${_used_pct}" "${_level}" '\033[0m'
 }
 
-# ── Pre-exit auto-archive (runs astroai-session-archive --force once per session) ──
-# ponytail: silent git push on shell exit → make opt-in if users complain
+# ── Pre-exit auto-archive (once per git repo per session) ──
 __astroai_auto_archive() {
-    local _marker="${HOME}/.astroai/auto-archived"
+    local _root _hash _marker _log
+
+    git rev-parse --is-inside-work-tree &>/dev/null || return 0
+    _root="$(git rev-parse --show-toplevel 2>/dev/null)" || return 0
+    _hash="$(printf '%s' "${_root}" | sha256sum | awk '{print $1}')"
+    _marker="${HOME}/.astroai/auto-archived-${_hash}"
+    _log="${HOME}/.astroai/auto-archive.log"
 
     [[ -f "${_marker}" ]] && return 0
-    git rev-parse --is-inside-work-tree &>/dev/null || return 0
 
     mkdir -p "${HOME}/.astroai"
     touch "${_marker}"
-    astroai-session-archive --force 2>/dev/null || true
+    if astroai-session-archive --force >>"${_log}" 2>&1; then
+        return 0
+    fi
+    rm -f "${_marker}"
+}
+
+__astroai_on_exit() {
+    __astroai_auto_archive
+    if [[ -n "${__ASTROAI_PRIOR_EXIT_TRAP:-}" ]]; then
+        eval "${__ASTROAI_PRIOR_EXIT_TRAP}"
+    fi
 }
 
 if [[ -t 1 ]]; then
-    # Note: replaces any pre-existing EXIT trap (fresh CANFAR shells have none)
-    trap __astroai_auto_archive EXIT
+    __ASTROAI_PRIOR_EXIT_TRAP="$(
+        trap -p EXIT 2>/dev/null | sed -n "s/^trap -- '\(.*\)' EXIT\$/\1/p" || true
+    )"
+    if [[ -z "${__ASTROAI_PRIOR_EXIT_TRAP}" || "${__ASTROAI_PRIOR_EXIT_TRAP}" == "__astroai_on_exit" ]]; then
+        unset __ASTROAI_PRIOR_EXIT_TRAP
+    fi
+    trap __astroai_on_exit EXIT
 fi
 
 if [[ -t 1 ]]; then

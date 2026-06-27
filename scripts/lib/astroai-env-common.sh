@@ -1,6 +1,7 @@
 # Shared helpers for AstroAI env save/resume wrappers.
 
 ASTROAI_ENV_COMMON_LOADED=1
+set -o pipefail 2>/dev/null || true
 
 if [[ -f /opt/astroai/lib/astroai-ui.sh ]]; then
     # shellcheck disable=SC1091

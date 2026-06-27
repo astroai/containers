@@ -1,4 +1,5 @@
 #!/bin/bash -e
+set -o pipefail
 # Save a pixi or uv project environment for later resume.
 #
 # Default: lightweight save (lockfiles + manifest only, a few KB on /arc).
@@ -75,6 +76,23 @@ if [[ ! "${PWD}" =~ ^/scratch(/|$) && -d /scratch ]]; then
     astroai_warn "Note: saving from ${PWD} — prefer /scratch for active projects."
 fi
 
+MANIFEST="${SAVE_DIR}/manifest.json"
+write_manifest() {
+    local full_flag="${1:-0}"
+    jq -n \
+        --arg name "${NAME}" \
+        --arg kind "${KIND}" \
+        --arg saved_at "${STAMP}" \
+        --arg saved_from "${PWD}" \
+        --arg user "${USER}" \
+        --argjson full "${full_flag}" \
+        '{name: $name, kind: $kind, saved_at: $saved_at, saved_from: $saved_from, user: $user, full: $full}' \
+        > "${MANIFEST}"
+}
+
+# Lockfile manifest first — cancel on --full pack prompt still leaves a resumable save.
+write_manifest 0
+
 if [[ "${FULL}" -eq 1 ]]; then
     case "${KIND}" in
         pixi) ENV_DIR=".pixi" ;;
@@ -100,18 +118,8 @@ if [[ "${FULL}" -eq 1 ]]; then
 
     astroai_info "Packing environment..."
     tar -C . -cf - "${ENV_DIR}" | zstd -T0 -o "${SAVE_DIR}/env.tar.zst"
+    write_manifest 1
 fi
-
-MANIFEST="${SAVE_DIR}/manifest.json"
-jq -n \
-    --arg name "${NAME}" \
-    --arg kind "${KIND}" \
-    --arg saved_at "${STAMP}" \
-    --arg saved_from "${PWD}" \
-    --arg user "${USER}" \
-    --argjson full "${FULL}" \
-    '{name: $name, kind: $kind, saved_at: $saved_at, saved_from: $saved_from, user: $user, full: $full}' \
-    > "${MANIFEST}"
 
 du -sh "${SAVE_DIR}"
 astroai_ok "Saved ${KIND} environment '${NAME}' -> ${SAVE_DIR}"

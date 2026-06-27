@@ -55,6 +55,15 @@ require_command() {
 }
 require_command rsync
 
+astroai_rsync() {
+    local src="$1" dst="$2"
+    if [[ -d "${src}" ]]; then
+        rsync -avh --progress "${src%/}/" "${dst}"
+    else
+        rsync -avh --progress "${src}" "${dst}"
+    fi
+}
+
 if [[ "${MODE}" == "stage" ]]; then
     # ── stage: persistent → /scratch ──────────────
     if [[ -z "${TARGET}" ]]; then
@@ -80,7 +89,7 @@ if [[ "${MODE}" == "stage" ]]; then
     fi
 
     astroai_info "  copying..."
-    rsync -avh --progress "${SOURCE}" "${TARGET}"
+    astroai_rsync "${SOURCE}" "${TARGET}"
     astroai_ok "✓ staged to ${TARGET}"
 
 elif [[ "${MODE}" == "sync" ]]; then
@@ -116,6 +125,6 @@ elif [[ "${MODE}" == "sync" ]]; then
     fi
 
     astroai_info "  syncing..."
-    rsync -avh --progress "${SOURCE}" "${TARGET}"
+    astroai_rsync "${SOURCE}" "${TARGET}"
     astroai_ok "✓ synced to ${TARGET}"
 fi

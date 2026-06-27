@@ -1,6 +1,17 @@
 #!/bin/bash
 # Bootstrap AstroAI shared shell libraries (image or git checkout).
 
+astroai_bin() {
+    local name="$1"
+    if command -v "${name}" >/dev/null 2>&1; then
+        command -v "${name}"
+    elif [[ -x "/opt/astroai/bin/${name}" ]]; then
+        echo "/opt/astroai/bin/${name}"
+    else
+        echo "${name}"
+    fi
+}
+
 astroai_source_common() {
     local script="${1:-${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}}"
     local dir candidate

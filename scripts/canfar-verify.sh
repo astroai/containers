@@ -1,4 +1,5 @@
 #!/bin/bash -e
+set -o pipefail
 # Post-deploy smoke checks for AstroAI images (run inside a CANFAR session).
 #
 # Usage:
@@ -39,8 +40,10 @@ echo "=========================="
 check "astroai-profile on PATH" bash -lc '[[ ":${PATH}:" == *":/opt/astroai/venv/cadc/bin:"* ]]'
 check "login shell: canfar" login_shell 'command -v canfar >/dev/null'
 check "login shell: cadcget" login_shell 'command -v cadcget >/dev/null'
+check "login shell: cadcput" login_shell 'command -v cadcput >/dev/null'
 check "login shell: cadc-tap" login_shell 'command -v cadc-tap >/dev/null'
 check "login shell: vcp" login_shell 'command -v vcp >/dev/null'
+check "login shell: cadc-get-cert" login_shell 'command -v cadc-get-cert >/dev/null'
 check "login shell: astroai-help" login_shell 'command -v astroai-help >/dev/null'
 
 for tool in gh rg fd bat fzf uv pixi patch make file xxd hexdump lsof ss host ncdu shellcheck ctags; do
@@ -66,4 +69,4 @@ if [[ "${failures}" -eq 0 ]]; then
     exit 0
 fi
 echo "${failures} check(s) failed." >&2
-exit ${failures}
+exit 1

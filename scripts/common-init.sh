@@ -48,10 +48,10 @@ else
     cd "${HOME}"
 fi
 
-# Track session start time for astroai-status; reset per-session exit hook marker
+# Track session start time for astroai-status; reset per-session auto-archive markers
 mkdir -p "${HOME}/.astroai"
 date -u +%s > "${HOME}/.astroai/session-started"
-rm -f "${HOME}/.astroai/auto-archived"
+rm -f "${HOME}/.astroai/auto-archived" "${HOME}"/.astroai/auto-archived-*
 
 if [[ ! -f "${HOME}/.astroai/welcomed" ]]; then
     touch "${HOME}/.astroai/welcomed"
