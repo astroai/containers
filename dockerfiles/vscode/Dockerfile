@@ -5,6 +5,9 @@ ARG REGISTRY=images.canfar.net
 ARG OWNER=astroai
 ARG BASE_NAME=base
 ARG TAG=local
+ARG OPENVSCODE_VERSION=openvscode-server-v1.109.5
+ARG OPENVSCODE_SHA256_X64=b433bf4f0227321a7014d8460d10a8f958adc0f45aa79bd889e84e65e8f88363
+ARG OPENVSCODE_SHA256_ARM64=36d9c14036489b63de84ebace837fcacf7e60e669a0dc715802c5443684ea4dc
 
 FROM ${REGISTRY}/${OWNER}/${BASE_NAME}:${TAG}
 
@@ -15,12 +18,19 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV SHELL=/bin/bash
 
 RUN ARCH=$(uname -m | sed 's/x86_64/x64/; s/aarch64/arm64/') \
-    && OPENVSCODE_TAG="$(curl -fsSL https://api.github.com/repos/gitpod-io/openvscode-server/releases/latest \
-        | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")" \
-    && curl -fsSL \
-    "https://github.com/gitpod-io/openvscode-server/releases/download/${OPENVSCODE_TAG}/${OPENVSCODE_TAG}-linux-${ARCH}.tar.gz" \
-    | tar -xz -C /opt \
-    && mv "/opt/${OPENVSCODE_TAG}-linux-${ARCH}" /opt/openvscode-server
+    && case "${ARCH}" in \
+        x64) SHA256="${OPENVSCODE_SHA256_X64}" ;; \
+        arm64) SHA256="${OPENVSCODE_SHA256_ARM64}" ;; \
+        *) echo "unsupported arch: ${ARCH}" >&2; exit 1 ;; \
+       esac \
+    && TARBALL="${OPENVSCODE_VERSION}-linux-${ARCH}.tar.gz" \
+    && curl -fsSL -o "${TARBALL}" \
+        "https://github.com/gitpod-io/openvscode-server/releases/download/${OPENVSCODE_VERSION}/${TARBALL}" \
+    && echo "${SHA256}  ${TARBALL}" | sha256sum -c - \
+    && tar -xzf "${TARBALL}" -C /opt \
+    && mv "/opt/${OPENVSCODE_VERSION}-linux-${ARCH}" /opt/openvscode-server \
+    && rm "${TARBALL}" \
+    && chmod -R a+rx /opt/openvscode-server
 
 RUN mkdir -p /opt/openvscode-server/data/Machine
 COPY config/openvscode-settings.json /opt/openvscode-server/data/Machine/settings.json

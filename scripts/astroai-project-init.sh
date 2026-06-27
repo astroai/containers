@@ -46,6 +46,11 @@ if [[ -z "${NAME}" ]]; then
     exit 1
 fi
 
+[[ "${NAME}" =~ ^[a-zA-Z0-9_-]+$ ]] || {
+    echo "Invalid project name '${NAME}': use letters, digits, _, - only." >&2
+    exit 1
+}
+
 if [[ ! -d /arc/projects ]]; then
     echo "/arc/projects is not mounted. Team workspaces require CANFAR's /arc/projects storage." >&2
     exit 1

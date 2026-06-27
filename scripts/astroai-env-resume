@@ -75,7 +75,7 @@ done
 
 cd "${TARGET}"
 
-if [[ "${FULL}" == "true" && -f "${SAVE_DIR}/env.tar.zst" ]]; then
+if [[ "${FULL}" == "1" && -f "${SAVE_DIR}/env.tar.zst" ]]; then
     astroai_info "Extracting packed environment..."
     zstd -d -c "${SAVE_DIR}/env.tar.zst" | tar -xf -
     astroai_ok "Restored full pack in ${TARGET}"

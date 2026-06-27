@@ -23,6 +23,7 @@ REGISTRY="${REGISTRY:-images.canfar.net}"
 TIMEOUT="${CANFAR_TEST_TIMEOUT:-600}"
 FULL_IMAGE="${REGISTRY}/${OWNER}/${IMAGE}:${TAG}"
 SESSION_NAME="astroai-verify-${IMAGE}-${TAG}-$(date -u +%Y%m%d%H%M%S)"
+FAILURES=0
 
 maybe_registry_auth() {
     if [[ -n "${CANFAR_REGISTRY__USERNAME:-}" && -n "${CANFAR_REGISTRY__SECRET:-}" ]]; then
@@ -183,7 +184,8 @@ if [[ "${CREATE_RC}" -ne 0 ]]; then
         registry_auth_hint
     fi
     echo "Failed to create headless session." >&2
-    exit 1
+    FAILURES=$((FAILURES + 1))
+    exit ${FAILURES}
 fi
 
 echo "${CREATE_OUT}"
@@ -235,7 +237,8 @@ if [[ "${status}" != "Succeeded" && "${status}" != "Completed" ]]; then
     canfar logs "${SESSION_ID}" 2>&1 || true
     echo ""
     echo "Verification failed (status: ${status:-timeout})." >&2
-    exit 1
+    FAILURES=$((FAILURES + 1))
+    exit ${FAILURES}
 fi
 
 echo ""
@@ -246,9 +249,10 @@ printf '%s\n' "${LOGS}"
 if printf '%s\n' "${LOGS}" | grep -q "All checks passed."; then
     echo ""
     echo "CANFAR headless verification passed for ${FULL_IMAGE}."
-    exit 0
+    exit ${FAILURES}
 fi
 
 echo ""
 echo "Session succeeded but verification output missing success marker." >&2
-exit 1
+FAILURES=$((FAILURES + 1))
+exit ${FAILURES}

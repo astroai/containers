@@ -125,10 +125,7 @@ astroai_quota_startup_check() {
 
     # Home quota (always relevant)
     if [[ -d "${HOME}" ]]; then
-        if ! astroai_check_quota "${HOME}" "home (/arc/home/${USER})" >/dev/null 2>&1; then
-            astroai_check_quota "${HOME}" "home (/arc/home/${USER})" || true
-            warned=1
-        fi
+        astroai_check_quota "${HOME}" "home (/arc/home/${USER})" || warned=1
     fi
 
     # Project quota (if PWD is inside /arc/projects/<project>)
@@ -136,10 +133,7 @@ astroai_quota_startup_check() {
     proj_path="$(astroai_find_arc_project_root)"
     if [[ -n "${proj_path}" ]]; then
         local proj_label="project ($(basename "${proj_path}"))"
-        if ! astroai_check_quota "${proj_path}" "${proj_label}" >/dev/null 2>&1; then
-            astroai_check_quota "${proj_path}" "${proj_label}" || true
-            warned=1
-        fi
+        astroai_check_quota "${proj_path}" "${proj_label}" || warned=1
     fi
 
     if [[ "${warned}" -eq 1 ]]; then

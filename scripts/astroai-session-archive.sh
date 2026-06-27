@@ -50,8 +50,9 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
     BRANCH="$(git branch --show-current 2>/dev/null || echo unknown)"
     REMOTE="$(git remote get-url origin 2>/dev/null || echo none)"
 
-    # Check for unstaged / uncommitted changes
-    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    # Check for unstaged / uncommitted changes (skip empty repos with no commits)
+    if git rev-parse --verify HEAD >/dev/null 2>&1 \
+        && ! git diff-index --quiet HEAD -- 2>/dev/null; then
         UNCOMMITTED=1
         if [[ "${FORCE}" -eq 0 ]]; then
             astroai_warn "⚠  Uncommitted changes detected. Commit before pushing:"

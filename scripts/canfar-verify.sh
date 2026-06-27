@@ -19,7 +19,7 @@ done
 
 failures=0
 login_shell() {
-    bash -lc "$@"
+    bash -lc "$*"
 }
 
 check() {
@@ -66,4 +66,4 @@ if [[ "${failures}" -eq 0 ]]; then
     exit 0
 fi
 echo "${failures} check(s) failed." >&2
-exit 1
+exit ${failures}

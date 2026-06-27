@@ -23,6 +23,7 @@ OWNER="${OWNER:-astroai}"
 REGISTRY="${REGISTRY:-images.canfar.net}"
 TAG="${TAG:-local}"
 SESSION_ID="${SESSION_ID:-test-session-001}"
+FAILURES=0
 
 FAKE_ARC="$(mktemp -d)"
 FAKE_SCRATCH="$(mktemp -d)"
@@ -70,12 +71,12 @@ if [[ "${VERIFY_ONLY}" -eq 1 ]]; then
         # Legacy images exported the guard — ensure login children still work.
         export ASTROAI_PROFILE_LOADED=1
         exec bash -lic "command -v canfar cadcget cadc-tap vcp astroai-help >/dev/null"
-    '
+    ' || FAILURES=$((FAILURES + 1))
 
     echo ""
     echo "Running full verification script..."
-    run_docker /opt/astroai/bin/canfar-verify.sh
-    exit 0
+    run_docker /opt/astroai/bin/canfar-verify.sh || FAILURES=$((FAILURES + 1))
+    exit ${FAILURES}
 fi
 
 echo "Running ${FULL_IMAGE} on ${ACCESS_URL}"
@@ -97,4 +98,6 @@ docker run --rm "${TTY_ARGS[@]}" \
     -v "${FAKE_SCRATCH}:/scratch" \
     -p "${PORT}:${CONTAINER_PORT}" \
     "${FULL_IMAGE}" \
-    "${RUN_CMD[@]}"
+    "${RUN_CMD[@]}" || FAILURES=$((FAILURES + 1))
+
+exit ${FAILURES}

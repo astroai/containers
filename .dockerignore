@@ -1,0 +1,8 @@
+.git
+_build
+*.log
+*.md
+!docs/USAGE.md
+LICENSE
+docker-bake.hcl
+Makefile

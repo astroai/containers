@@ -5,8 +5,10 @@ ARG REGISTRY=images.canfar.net
 ARG OWNER=astroai
 ARG BASE_NAME=base
 ARG TAG=local
-
-FROM tsl0922/ttyd:latest AS ttyd-bin
+ARG TTYD_VERSION=1.7.7
+ARG STARSHIP_VERSION=1.25.1
+ARG STARSHIP_SHA256_X64=c6ddd3ecb9c0071a2ad38d98cee748160066b7c4f197421268058f4a5d6f8504
+ARG STARSHIP_SHA256_ARM64=01517aab398959ea9ea73bdb4f032ea4dbb51dff5c8e5eb05b4a1b9b7ab872b8
 
 FROM ${REGISTRY}/${OWNER}/${BASE_NAME}:${TAG}
 
@@ -18,9 +20,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ttyd-bin /usr/bin/ttyd /usr/local/bin/ttyd
+COPY dockerfiles/install-ttyd.sh /tmp/install-ttyd.sh
+RUN chmod a+rx /tmp/install-ttyd.sh \
+    && /tmp/install-ttyd.sh "${TTYD_VERSION}" \
+    && rm /tmp/install-ttyd.sh
 
-RUN curl -sS https://starship.rs/install.sh | sh -s -- --yes \
+RUN ARCH="$(uname -m)" \
+    && case "${ARCH}" in \
+        x86_64) TRIPLE=x86_64-unknown-linux-musl; SHA256="${STARSHIP_SHA256_X64}" ;; \
+        aarch64) TRIPLE=aarch64-unknown-linux-musl; SHA256="${STARSHIP_SHA256_ARM64}" ;; \
+        *) echo "unsupported arch: ${ARCH}" >&2; exit 1 ;; \
+       esac \
+    && TARBALL="starship-${TRIPLE}.tar.gz" \
+    && curl -fsSL -o "${TARBALL}" \
+        "https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/${TARBALL}" \
+    && echo "${SHA256}  ${TARBALL}" | sha256sum -c - \
+    && tar -xzf "${TARBALL}" -C /usr/local/bin \
+    && rm "${TARBALL}" \
+    && starship --version \
     && { printf '%s\n' \
         '# Bash-only (/etc/profile sources profile.d for all login shells, including sh).' \
         'if [ -z "${BASH_VERSION:-}" ]; then' \

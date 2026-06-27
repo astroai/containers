@@ -62,6 +62,7 @@ make push/vscode TAG=26.06
 dockerfiles/
   python/       # 3.13-slim + uv + pixi
   base/         # headless: git, monitoring, CLI, astroai-* wrappers
+  full/         # headless + Node.js LTS
   webterm/      # contributed: ttyd + tmux
   vscode/       # contributed: OpenVSCode Server
   notebook/     # notebook: JupyterLab + ipykernel (port 8888)
@@ -73,6 +74,11 @@ docs/
 scripts/
   startup-*.sh  # session entrypoints
   astroai-*     # env save/resume, help, status, caches
+  lib/
+    astroai-env-common.sh
+    astroai-load.sh
+    astroai-ui.sh
+    skaha-proxy.sh
 ```
 
 ## Design
@@ -81,6 +87,7 @@ scripts/
 - **Minimal bake stack** — `python` → `base` → four session images; heavy software via pixi or [CVMFS on CANFAR nodes](https://opencadc.github.io/canfar/platform/cvmfs/) ([source](https://github.com/opencadc/canfar/blob/main/docs/platform/cvmfs.md)).
 - **Quick feedback loops** — `/scratch` for active work, `astroai-new` / `astroai-env-resume`, caches on `/arc`.
 - **Skaha session types** — Contributed (5000) for webterm/vscode/marimo; Notebook (8888) for notebook.
+- **Authentication** — Jupyter, VS Code, Marimo, and ttyd run without built-in auth. CANFAR Skaha terminates TLS and enforces portal login. Do not expose these images on the public internet without an authenticating reverse proxy.
 
 ## Contributing
 

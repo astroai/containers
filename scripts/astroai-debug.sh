@@ -100,7 +100,7 @@ fi
 section "Tools"
 for tool in git gh uv pixi python3 nvidia-smi nvtop htop jq rg fd bat fzf delta tldr curl wget rsync zstd patch make lsof xxd hexdump ss host ncdu shellcheck ctags canfar cadcget cadc-tap vcp cadc-get-cert; do
     if command -v "${tool}" >/dev/null 2>&1; then
-        ver="$("${tool}" --version 2>&1 | head -1)"
+        ver="$(timeout 2 "${tool}" --version 2>&1 | head -1)"
         printf "  %-12s %s\n" "${tool}" "${ver}"
     else
         printf "  %-12s %s\n" "${tool}" "NOT FOUND"
@@ -147,7 +147,7 @@ done
 
 section "Environment" 
 echo "Key environment variables (sanitized):"
-env | sort | grep -vE '^(TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL|AUTH|GITHUB_TOKEN|CURSOR_|ANTHROPIC_|OPENAI_|GEMINI_|CODECX_|CLAUDE_)' | grep -iE '^(PATH|HOME|USER|SHELL|LANG|XDG_|UV_|PIXI_|PIP_|HF_|TORCH_|NPM_|MPL_|TMPDIR|ASTROAI_|JUPYTER_|TERM|LC_|CUDA_|NVIDIA_)' | sed 's/^/  /'
+env | sort | grep -vE '^(TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL|AUTH|GITHUB_TOKEN|AWS_SECRET_ACCESS_KEY|WANDB_API_KEY|HUGGING_FACE_TOKEN|HF_TOKEN|CURSOR_|ANTHROPIC_|OPENAI_|GEMINI_|CODECX_|CLAUDE_)' | grep -iE '^(PATH|HOME|USER|SHELL|LANG|XDG_|UV_|PIXI_|PIP_|HF_|TORCH_|NPM_|MPL_|TMPDIR|ASTROAI_|JUPYTER_|TERM|LC_|CUDA_|NVIDIA_)' | sed 's/^/  /'
 
 section "Processes"
 echo "Top 10 by CPU:"

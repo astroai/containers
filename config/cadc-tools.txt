@@ -1,5 +1,6 @@
 # Platform CADC/CANFAR Python clients (installed to /opt/astroai/venv/cadc at build time).
-cadcdata
-cadctap
-vos
-canfar
+# Pin versions for reproducible builds; bump intentionally when upgrading.
+cadcdata==2.5.2
+cadctap==0.10.1
+vos==3.6.4
+canfar==1.4.1

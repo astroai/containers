@@ -67,7 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
     && git config --system core.pager delta \
     && git config --system interactive.diffFilter 'delta --color-only' \
-    && git config --system delta.navigate-repbinds true
+    && git config --system delta.navigate true
 
 ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
@@ -82,7 +82,8 @@ COPY scripts/astroai-profile.sh /etc/profile.d/astroai.sh
 RUN chmod a+r /etc/profile.d/astroai.sh
 
 RUN mkdir -p /opt/astroai/{bin,cache,lib,venv} /cadc \
-    && chmod -R a+rwx /opt/astroai
+    && chmod -R a+rX /opt/astroai \
+    && chmod -R a+rwx /opt/astroai/cache
 
 COPY config/cadc-tools.txt /opt/astroai/cadc-tools.txt
 COPY scripts/patch-clint-py313.sh /tmp/patch-clint-py313.sh

@@ -20,20 +20,3 @@ astroai_source_common() {
 
     return 1
 }
-
-astroai_bootstrap() {
-    local script="${1:-${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}}"
-    local dir
-
-    for dir in /opt/astroai/lib \
-        "$(cd "$(dirname "${script}")" && pwd)/lib" \
-        "$(cd "$(dirname "${script}")/.." && pwd)/lib"; do
-        if [[ -f "${dir}/astroai-load.sh" ]]; then
-            break
-        fi
-        dir=""
-    done
-
-    [[ -n "${dir}" ]] || return 1
-    astroai_source_common "${script}"
-}

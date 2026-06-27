@@ -39,11 +39,10 @@ if [[ -f /opt/astroai/lib/astroai-env-common.sh ]]; then
     source /opt/astroai/lib/astroai-env-common.sh
 fi
 
-astroai_quota_startup_check
+command -v astroai_quota_startup_check &>/dev/null && astroai_quota_startup_check
 
 if [[ -d /scratch ]]; then
     git config --global --add safe.directory /scratch 2>/dev/null || true
-    git config --global --add safe.directory '*' 2>/dev/null || true
     cd /scratch
 else
     cd "${HOME}"

@@ -68,7 +68,7 @@ case "${KIND}" in
 esac
 
 for f in .python-version README.md; do
-    [[ -f "${f}" ]] && cp -a "${f}" "${SAVE_DIR}/" || true
+    if [[ -f "${f}" ]]; then cp -a "${f}" "${SAVE_DIR}/"; fi
 done
 
 if [[ ! "${PWD}" =~ ^/scratch(/|$) && -d /scratch ]]; then
