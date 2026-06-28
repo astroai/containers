@@ -504,6 +504,7 @@ gh run list --limit 5             # recent CI runs
 | `canfar-lab clean home` | Clear re-downloadable junk on `/arc` (`--all-safe`, `--stale-pkg`, `--ml`, `--hf`, `--dry-run`) |
 | `canfar-lab clean cache` | Clear scratch download caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--conda`, `--hf`) |
 | `canfar-lab agent install <tool>` | Install AI tools to `~/.local/bin` (`--list`) |
+| `canfar-lab agent models free` | Apply free-tier model presets (OpenRouter + Kilo) |
 | `canfar-lab doctor` | Diagnostic report (`--stdout`, `--file`) |
 
 Most `astroai-*` commands support `-h` (short summary on stderr, exit 1) and
@@ -657,11 +658,13 @@ Node.js — those change too fast to bundle.
 ### One-command install
 
 ```bash
-canfar-lab agent install agent             # Cursor Agent
-canfar-lab agent install claude            # Claude Code
-canfar-lab agent install agy               # Google Antigravity CLI
-canfar-lab agent install node              # Node.js + npm (needed for some agents)
-canfar-lab agent install --list            # see everything available
+canfar-lab agent install kilo             # Kilo CLI (free tier via kilo-auto/free)
+canfar-lab agent install goose            # Goose (OpenRouter / MCP)
+canfar-lab agent install cline            # Cline CLI (needs npm)
+canfar-lab agent install agent            # Cursor Agent
+canfar-lab agent install claude           # Claude Code
+canfar-lab agent install node             # Node.js + npm (needed for cline, pi, …)
+canfar-lab agent install --list           # see everything available
 ```
 
 Binaries land in `~/.local/bin` on `/arc` — they persist across sessions.
@@ -672,20 +675,21 @@ One setup for **all users** — config persists on `/arc` across sessions.
 
 ```bash
 gh auth login
-canfar-lab agent setup              # once: MCP + rules + GitHub skills
-canfar-lab agent install agent            # pick your CLI: agent, claude, goose, opencode, codex, …
+canfar-lab agent setup              # once: MCP + rules + GitHub skills + free-model presets
+canfar-lab agent install kilo       # or goose, cline, opencode, codex, agent, …
+canfar-lab agent models free        # OpenRouter :free + Kilo configs (no credit card key)
 ```
 
 **After an image upgrade** (operators ship new skills/MCP defaults):
 
 ```bash
-canfar-lab agent setup update
+canfar-lab agent update
 ```
 
 **Inside a git repo** (optional, commit to share with teammates):
 
 ```bash
-canfar-lab agent setup project
+canfar-lab agent project
 ```
 
 What you get:
@@ -696,7 +700,7 @@ What you get:
 | Cursor/Claude/Goose/OpenCode/Codex configs | Same MCP everywhere you work |
 | Rules | AstroAI paths, Python, efficient search |
 | GitHub skills | [ast-grep](https://github.com/ast-grep/agent-skill), [skill-forge](https://github.com/pavelzw/skill-forge) (matplotlib, pr-review, …) |
-| `astroai-workflow` skill | CANFAR cheat sheet for agents |
+| `canfar-lab-workflow` skill | CANFAR cheat sheet for agents |
 
 Then use **normal commands** — nothing extra to memorize:
 
@@ -706,7 +710,7 @@ uv sync && uv run pytest -q
 rg 'pattern' --type py
 ```
 
-Check install: `cat ~/.astroai/agent-setup-stamp`
+Check install: `cat ~/.canfar/lab/agent-setup-stamp`
 
 Advanced: `canfar-lab agent setup --list` for per-agent bundles; `canfar-lab agent setup --help`
 
@@ -721,6 +725,8 @@ Advanced: `canfar-lab agent setup --list` for per-agent bundles; `canfar-lab age
 | [Codex CLI](https://openai-codex.mintlify.app/installation) | `codex` | npm or `gh release download` | npm path only |
 | [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli) | `copilot` | curl script | No |
 | [Goose](https://block.github.io/goose/) | `goose` | curl script | No |
+| [Kilo CLI](https://kilo.ai/docs/code-with-ai/agents/cli) | `kilo` | curl script (or npm) | Optional |
+| [Cline CLI](https://docs.cline.bot/cline-cli/overview) | `cline` | npm | Yes |
 | [Pi Coding Agent](https://pi.dev/) | `pi` | npm | Yes |
 | [CodeWhale](https://www.codewhale.ai/) | `codewhale` | npm | Yes |
 | [Swival](https://swival.dev/) | `swival` | `uv tool install` | No |
@@ -739,6 +745,8 @@ Advanced: `canfar-lab agent setup --list` for per-agent bundles; `canfar-lab age
 | OpenAI ChatGPT / Codex | **Codex CLI** — `canfar-lab agent install codex` |
 | Model-agnostic, 75+ providers | **OpenCode** — `canfar-lab agent install opencode` |
 | MCP + recipes, Block/Linux Foundation | **Goose** — `canfar-lab agent install goose` |
+| Free tier, no API key to start | **Kilo** — `canfar-lab agent install kilo` then `kilo auth` |
+| OpenRouter free models (key, no card) | **Any OpenRouter agent** — `export OPENROUTER_API_KEY=…` then `canfar-lab agent models free` |
 | Minimal harness, BYOK | **Pi** — needs Node |
 | Open models / DeepSeek-first TUI | **CodeWhale** — needs Node |
 | Local models (LM Studio, Ollama) | **Swival** — `canfar-lab agent install swival` |
