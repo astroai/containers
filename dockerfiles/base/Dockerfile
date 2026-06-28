@@ -105,13 +105,13 @@ RUN mkdir -p /opt/astroai/{bin,cache,lib,venv} /cadc "${ASTROAI_DEFAULT_SRC_DIR}
     && chmod 1777 "${ASTROAI_DEFAULT_SRC_DIR}"
 
 COPY config/cadc-tools.txt /opt/astroai/cadc-tools.txt
-COPY vendor/canfar_lab-0.1.0-py3-none-any.whl /tmp/canfar_lab.whl
+COPY vendor/canfar_lab-0.1.0-py3-none-any.whl /tmp/canfar_lab-0.1.0-py3-none-any.whl
 COPY scripts/patch-clint-py313.sh /tmp/patch-clint-py313.sh
 RUN uv venv /opt/astroai/venv/cadc \
     && uv pip install --python /opt/astroai/venv/cadc -r /opt/astroai/cadc-tools.txt \
-    && uv pip install --python /opt/astroai/venv/cadc /tmp/canfar_lab.whl \
+    && uv pip install --python /opt/astroai/venv/cadc /tmp/canfar_lab-0.1.0-py3-none-any.whl \
     && bash /tmp/patch-clint-py313.sh /opt/astroai/venv/cadc \
-    && rm /tmp/patch-clint-py313.sh /tmp/canfar_lab.whl \
+    && rm /tmp/patch-clint-py313.sh /tmp/canfar_lab-0.1.0-py3-none-any.whl \
     && chmod -R a+rX /opt/astroai/venv/cadc
 
 COPY scripts/lib/astroai-env-common.sh scripts/lib/astroai-ui.sh scripts/lib/astroai-load.sh scripts/lib/skaha-proxy.sh /opt/astroai/lib/
