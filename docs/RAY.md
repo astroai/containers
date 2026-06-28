@@ -15,51 +15,68 @@ User-owned Ray clusters: a **contributed `ray-manager` session** (port 5000) lau
 
 ```bash
 make build-ray BUILD_TAG=26.06
-make test-ray                              # local Docker cluster
+make test-ray                              # local: 1-worker, 2-worker + recovery
 make push-ray TAG=26.06
-make test-canfar-ray TAG=26.06             # Milestone B on CANFAR (needs canfar auth)
+make test-canfar-ray TAG=26.06             # CANFAR: 2-worker cluster lifecycle
 ```
 
 Ray layers use the **same bake `TAG` as `base`** — no separate `BASE_TAG` pin.
 
-## CANFAR authentication (Milestone B)
+## CANFAR authentication
 
-The manager launches workers with the **`canfar` Python client** (`canfar.sessions.Session.create`). Credentials must exist in the manager session:
+The manager launches workers with the **`canfar` Python client**. Run once from webterm/vscode:
 
-1. From an AstroAI **webterm** or **vscode** session, run once: `canfar auth login`
-2. Config persists under `/arc/home/<you>/.config/canfar/`
-3. Launch **ray-manager** — it inherits the same home directory
-4. Open the manager UI → **Run network preflight** → **Launch one worker**
+```bash
+canfar auth login
+```
 
-Harbor pull for worker images may require maintainer registry credentials via `CANFAR_REGISTRY__*` env vars on the manager session (see [OPERATORS.md](OPERATORS.md)).
+Config persists under `/arc/home/<you>/.config/canfar/` and is reused by **ray-manager** sessions.
+
+## Cluster workflow (Milestone C)
+
+1. **Run network preflight** — verifies pod-to-pod TCP for Ray ports
+2. **Create cluster** — specify worker count, CPU/RAM, min joined, partial-start policy
+3. **Use Ray** — connect with `ray.init(address="auto")` from the manager or your code
+4. **Stop cluster** — destroys all worker sessions and marks cluster `Stopped`
+
+Partial-start policies:
+
+| Policy | Behavior |
+|--------|----------|
+| `accept_partial` | Proceed when `min_joined` workers are healthy (cluster phase `Degraded`) |
+| `fail_and_cleanup` | Destroy workers and fail if minimum not met |
+| `continue_waiting` | Poll until timeout |
+
+State persists at `~/.canfar-ray/clusters/<cluster-id>/state.json`. On manager restart, **Reconcile state** (or automatic startup reconcile) refreshes CANFAR + Ray membership.
 
 ## Manager API
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /api/v1/auth/status` | CANFAR credential check |
-| `POST /api/v1/preflight/run` | Network preflight (one probe session) |
-| `POST /api/v1/workers/launch` | Launch one headless worker |
-| `POST /api/v1/workers/destroy-all` | Tear down recorded workers |
-| `GET /api/v1/status` | Ray address, workers, preflight |
+| `POST /api/v1/preflight/run` | Network preflight |
+| `POST /api/v1/cluster/create` | Launch N workers (`worker_count`, policy, resources) |
+| `POST /api/v1/cluster/stop` | Stop cluster and destroy workers |
+| `POST /api/v1/cluster/reconcile` | Refresh CANFAR/Ray state |
+| `POST /api/v1/cluster/clean-orphans` | Destroy untracked worker sessions |
+| `POST /api/v1/workers/{id}/retry` | Retry a failed worker |
+| `GET /api/v1/status` | Full cluster JSON |
 
-## Layout in this repo
+## Layout
 
 ```
-dockerfiles/ray-{base,manager,worker-cpu}/
-ray/manager/                # FastAPI app + CANFAR worker control
-ray/worker/start-worker.sh
-scripts/ray-network-probe.sh
-scripts/test-canfar-ray.sh
+ray/manager/           # FastAPI + cluster lifecycle
+scripts/test-ray-cluster-local.sh
 examples/ray/
 ```
 
-Full product spec: [ray-build-plan.md](ray-build-plan.md).
+Full spec: [ray-build-plan.md](ray-build-plan.md).
 
 ## Status
 
 | Milestone | Scope | Status |
 |-----------|--------|--------|
 | A | Local manager + worker join | Done |
-| B | CANFAR auth, preflight, one worker via API | Done (needs `make test-canfar-ray` on platform) |
-| C | Multi-worker UI, persistence, stop/recover | Planned |
+| B | CANFAR auth, preflight, worker via API | Done |
+| C | Multi-worker cluster, stop, reconcile, recovery | Done |
+| D | Astronomy workload validation | Planned |

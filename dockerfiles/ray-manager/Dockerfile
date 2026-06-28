@@ -15,7 +15,7 @@ COPY ray/manager/ /opt/astroai/ray-manager/
 COPY scripts/startup-ray-manager.sh /skaha/startup.sh
 RUN uv pip install --python /opt/astroai/venv/ray \
         "canfar==1.4.1" \
-        "fastapi>=0.115.0" "uvicorn[standard]>=0.32.0" \
+        "fastapi>=0.115.0" "uvicorn[standard]>=0.32.0" "python-multipart>=0.0.9" \
     && chmod a+rx /skaha/startup.sh
 
 EXPOSE 5000

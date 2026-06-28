@@ -10,6 +10,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+PARTIAL_POLICIES = frozenset({"fail_and_cleanup", "accept_partial", "continue_waiting"})
+
+TERMINAL_CLUSTER_PHASES = frozenset({"Stopped", "Failed", "Idle"})
+ACTIVE_CLUSTER_PHASES = frozenset({"Creating", "Running", "Degraded", "Stopping"})
+
+TERMINAL_WORKER_PHASES = frozenset({"Stopped", "Stopping", "Orphaned"})
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -28,6 +35,7 @@ class WorkerRecord:
     phase: str = "Requested"
     canfar_status: str | None = None
     ray_joined: bool = False
+    ray_node_id: str | None = None
     worker_ip: str | None = None
     cores: int | None = None
     ram_gb: int | None = None
@@ -42,6 +50,11 @@ class ClusterState:
     cluster_id: str
     manager_ip: str
     ray_address: str
+    name: str = ""
+    phase: str = "Idle"
+    worker_count: int = 0
+    min_joined: int = 1
+    partial_policy: str = "accept_partial"
     preflight: dict[str, Any] | None = None
     workers: list[WorkerRecord] = field(default_factory=list)
     updated_at: str = field(default_factory=_utc_now)
@@ -75,6 +88,11 @@ class StateStore:
             cluster_id=raw["cluster_id"],
             manager_ip=raw["manager_ip"],
             ray_address=raw["ray_address"],
+            name=raw.get("name", ""),
+            phase=raw.get("phase", "Idle"),
+            worker_count=int(raw.get("worker_count", 0)),
+            min_joined=int(raw.get("min_joined", 1)),
+            partial_policy=raw.get("partial_policy", "accept_partial"),
             preflight=raw.get("preflight"),
             workers=workers,
             updated_at=raw.get("updated_at", _utc_now()),
@@ -107,3 +125,9 @@ class StateStore:
         else:
             state.workers.append(worker)
         self.save(state)
+
+    def active_workers(self, state: ClusterState) -> list[WorkerRecord]:
+        return [w for w in state.workers if w.phase not in TERMINAL_WORKER_PHASES]
+
+    def joined_workers(self, state: ClusterState) -> list[WorkerRecord]:
+        return [w for w in state.workers if w.ray_joined and w.phase not in TERMINAL_WORKER_PHASES]

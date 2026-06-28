@@ -56,6 +56,38 @@ print(json.dumps(ray.nodes()))
         return []
 
 
+def parse_worker_ip_from_logs(logs: str) -> str | None:
+    for line in logs.splitlines():
+        if line.startswith("Worker ") and " joining " in line:
+            parts = line.split()
+            if len(parts) >= 2:
+                return parts[1]
+    return None
+
+
+def live_worker_node_ips() -> set[str]:
+    ips: set[str] = set()
+    for node in list_ray_nodes():
+        if not node.get("Alive"):
+            continue
+        addr = str(node.get("NodeManagerAddress") or "")
+        if addr:
+            ips.add(addr.split(":")[0])
+    return ips
+
+
+def node_ip_to_id() -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for node in list_ray_nodes():
+        if not node.get("Alive"):
+            continue
+        addr = str(node.get("NodeManagerAddress") or "")
+        if not addr:
+            continue
+        mapping[addr.split(":")[0]] = str(node.get("NodeID") or "")
+    return mapping
+
+
 def count_live_nodes() -> int:
     nodes = list_ray_nodes()
     return sum(1 for node in nodes if node.get("Alive"))

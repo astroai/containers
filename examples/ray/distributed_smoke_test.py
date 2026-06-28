@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 import ray
@@ -21,6 +22,7 @@ def hostname() -> str:
 
 
 def main() -> int:
+    min_nodes = int(os.environ.get("RAY_SMOKE_MIN_NODES", "2"))
     ray.init(address="auto")
     nodes = len(ray.nodes())
     print(f"Connected; {nodes} node(s) visible")
@@ -28,8 +30,8 @@ def main() -> int:
     hosts = ray.get([hostname.remote() for _ in range(2)])
     print("add results:", results)
     print("worker hosts:", hosts)
-    if nodes < 2:
-        print("WARN: expected at least 2 nodes (head + worker)", file=sys.stderr)
+    if nodes < min_nodes:
+        print(f"WARN: expected at least {min_nodes} nodes", file=sys.stderr)
         return 1
     if results != [0, 2, 4, 6]:
         return 1

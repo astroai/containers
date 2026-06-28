@@ -67,6 +67,7 @@ test-ray: build-ray ## Ray image checks + local cluster join
 		scripts/ray-network-probe.sh ray/worker/start-worker.sh
 	./scripts/test-ray-containers.sh
 	./scripts/test-ray-local.sh
+	./scripts/test-ray-cluster-local.sh
 
 test-canfar:
 	./scripts/test-canfar.sh $(or $(IMAGE),base) $(TAG)

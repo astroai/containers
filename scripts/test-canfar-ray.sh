@@ -162,23 +162,26 @@ if ! printf '%s' "${PF_JSON}" | python3 -c "import json,sys; d=json.load(sys.std
 fi
 
 echo ""
-echo "Launching one worker..."
-LAUNCH_JSON="$(api_curl -X POST "${MANAGER_URL}/api/v1/workers/launch" \
+echo "Launching two-worker cluster..."
+CLUSTER_JSON="$(api_curl -X POST "${MANAGER_URL}/api/v1/cluster/create" \
     -H 'Content-Type: application/json' \
-    -d '{"cores":1,"ram_gb":4,"require_preflight":true}' || true)"
-echo "${LAUNCH_JSON}" | python3 -m json.tool || echo "${LAUNCH_JSON}"
-if ! printf '%s' "${LAUNCH_JSON}" | python3 -c "
+    -d '{"name":"canfar-ray-test","worker_count":2,"cores":1,"ram_gb":4,"min_joined":2,"partial_policy":"accept_partial","require_preflight":true}' || true)"
+echo "${CLUSTER_JSON}" | python3 -m json.tool || echo "${CLUSTER_JSON}"
+if ! printf '%s' "${CLUSTER_JSON}" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
-w = d.get('worker') or {}
-sys.exit(0 if w.get('ray_joined') else 1)
+sys.exit(0 if d.get('success') and d.get('joined_workers', 0) >= 2 else 1)
 "; then
-    echo "Worker did not join Ray cluster." >&2
+    echo "Two-worker cluster did not reach healthy state." >&2
     FAILURES=$((FAILURES + 1))
 fi
 
 echo ""
-echo "Destroying workers..."
+echo "Stopping cluster..."
+api_curl -X POST "${MANAGER_URL}/api/v1/cluster/stop" | python3 -m json.tool || true
+
+echo ""
+echo "Destroying any remaining workers..."
 api_curl -X POST "${MANAGER_URL}/api/v1/workers/destroy-all" | python3 -m json.tool || true
 
 echo ""

@@ -68,7 +68,7 @@ def run_preflight(
             "PROBE_MANAGER_IP": manager_ip,
             "PROBE_PORTS": ports,
         },
-    )
+    )[0]
 
     probe_id = launch.session_id
     try:

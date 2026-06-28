@@ -69,7 +69,8 @@ class CanfarOps:
         cmd: str | None = None,
         args: str | None = None,
         env: dict[str, Any] | None = None,
-    ) -> SessionLaunch:
+        replicas: int = 1,
+    ) -> list[SessionLaunch]:
         registry_env = _registry_env()
         merged_env = dict(registry_env)
         if env:
@@ -84,12 +85,19 @@ class CanfarOps:
             cmd=cmd,
             args=args,
             env=merged_env or None,
-            replicas=1,
+            replicas=replicas,
         )
         if not ids:
             raise RuntimeError("CANFAR session create returned no session ID")
-        session_id = ids[0].strip()
-        return SessionLaunch(session_id=session_id, name=name)
+        launches: list[SessionLaunch] = []
+        for idx, session_id in enumerate(ids):
+            worker_name = name if replicas == 1 else f"{name}-{idx + 1}"
+            launches.append(SessionLaunch(session_id=session_id.strip(), name=worker_name))
+        return launches
+
+    def list_headless_sessions(self, *, name_prefix: str) -> list[dict[str, Any]]:
+        rows = self._session.fetch(kind="headless", view="all")
+        return [row for row in rows if str(row.get("name", "")).startswith(name_prefix)]
 
     def session_info(self, session_id: str) -> dict[str, Any]:
         rows = self._session.info(session_id)
@@ -127,8 +135,11 @@ class CanfarOps:
         return status
 
     def destroy(self, session_id: str) -> bool:
-        result = self._session.destroy(session_id)
-        return bool(result.get(session_id))
+        try:
+            result = self._session.destroy(session_id)
+            return bool(result.get(session_id))
+        except Exception:  # noqa: BLE001 — missing auth or unknown session
+            return False
 
 
 def _registry_env() -> dict[str, str]:

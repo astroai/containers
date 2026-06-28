@@ -82,11 +82,12 @@ def launch_worker(
         ram=ram_gb,
         gpu=gpus or None,
         env=env,
-    )
+        replicas=1,
+    )[0]
 
     worker = WorkerRecord(
         session_id=launch.session_id,
-        name=worker_name,
+        name=launch.name,
         phase="CANFAR Pending",
         cores=cores,
         ram_gb=ram_gb,
@@ -97,6 +98,9 @@ def launch_worker(
             cluster_id=settings.cluster_id,
             manager_ip=manager_pod_ip(),
             ray_address=ray_address(),
+            phase="Creating",
+            worker_count=1,
+            min_joined=1,
         )
     store.upsert_worker(state, worker)
 
@@ -129,6 +133,8 @@ def launch_worker(
     worker.phase = "Ray Healthy" if worker.ray_joined else "Ray Unhealthy"
     if not worker.ray_joined:
         worker.last_error = f"Ray nodes {final_count}, expected >={target_nodes}"
+    if worker.ray_joined:
+        state.phase = "Running"
     store.upsert_worker(state, worker)
     store.log_event(
         "worker_launch_done",
