@@ -142,9 +142,9 @@ __astroai_scratch_reminder() {
     fi
 
     if [[ -n "${_summary}" ]]; then
-        printf '\n  \033[1;33m⏳ %dh %dm (%s)\033[0m\n  → git push or canfar-lab push --yes (${TMP_SRC_DIR} is ephemeral)\n\n' "${_hours}" "${_mins}" "${_summary}"
+        printf '\n  \033[1;33m⏳ %dh %dm (%s)\033[0m\n  → git push or canfar-lab --yes push (${TMP_SRC_DIR} is ephemeral)\n\n' "${_hours}" "${_mins}" "${_summary}"
     else
-        printf '\n  \033[1;33m⏳ %dh %dm — git push or canfar-lab push --yes (${TMP_SRC_DIR} is ephemeral)\033[0m\n\n' "${_hours}" "${_mins}"
+        printf '\n  \033[1;33m⏳ %dh %dm — git push or canfar-lab --yes push (${TMP_SRC_DIR} is ephemeral)\033[0m\n\n' "${_hours}" "${_mins}"
     fi
 
     mkdir -p "${HOME}/.astroai"
@@ -204,7 +204,7 @@ __astroai_auto_archive() {
 
     mkdir -p "${HOME}/.astroai"
     touch "${_marker}"
-    if canfar-lab push --yes >>"${_log}" 2>&1; then
+    if canfar-lab --yes push >>"${_log}" 2>&1; then
         return 0
     fi
     rm -f "${_marker}"

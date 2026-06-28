@@ -449,7 +449,7 @@ gh repo create mylab --private --source=. --push
 ```bash
 canfar-lab push           # git push + env save + summary
 canfar-lab push --name my-experiment
-canfar-lab push --yes   # non-interactive (used by the exit hook)
+canfar-lab --yes push   # non-interactive (used by the exit hook)
 ```
 
 ### GPU workflow
