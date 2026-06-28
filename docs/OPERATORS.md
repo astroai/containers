@@ -25,7 +25,7 @@ Each image carries `io.canfar.skaha.session.type` in its OCI labels (`headless`,
 
 **Ray:** register **`ray-manager`** only in the Science Portal. Do **not** register `ray-worker-cpu` — workers are launched headlessly by the manager. See [RAY.md](RAY.md).
 
-Users must run `canfar auth login` once from another AstroAI session so credentials persist under `/arc/home`. Maintainers validate Milestone B with `make test-canfar-ray TAG=26.06` after push.
+Users must run `canfar auth login` once from another AstroAI session so credentials persist under `/arc/home` (`~/.canfar/config.yaml`). Maintainers validate Ray with `make test-canfar-ray TAG=26.06` after push (UI smoke + 2-worker cluster).
 
 ## Harbor registry (public project)
 

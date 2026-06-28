@@ -8,7 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
@@ -25,6 +25,7 @@ from ray_cluster import count_live_nodes, list_ray_nodes, ray_address, ray_runni
 from reconcile import reconcile_cluster
 from settings import ManagerSettings, manager_pod_ip
 from state_store import StateStore
+from ui import PAGE_STYLE, flash_html, redirect_with_flash
 from workers import destroy_all_workers, destroy_worker, launch_worker
 
 app = FastAPI(title="CANFAR Ray Manager")
@@ -220,8 +221,13 @@ def api_ray_nodes() -> JSONResponse:
 
 @app.post("/actions/preflight")
 def action_preflight() -> RedirectResponse:
-    run_preflight(_settings, _canfar, _store)
-    return RedirectResponse("/", status_code=303)
+    report = run_preflight(_settings, _canfar, _store)
+    if report.passed:
+        return RedirectResponse(redirect_with_flash("/", "ok", "Network preflight passed"), status_code=303)
+    return RedirectResponse(
+        redirect_with_flash("/", "error", report.message or "Network preflight failed"),
+        status_code=303,
+    )
 
 
 @app.post("/actions/create-cluster")
@@ -233,7 +239,7 @@ def action_create_cluster(
     partial_policy: str = Form("accept_partial"),
 ) -> RedirectResponse:
     try:
-        create_cluster(
+        result = create_cluster(
             settings=_settings,
             canfar=_canfar,
             store=_store,
@@ -248,29 +254,66 @@ def action_create_cluster(
                 require_preflight=True,
             ),
         )
-    except RuntimeError:
-        pass
-    return RedirectResponse("/", status_code=303)
+    except RuntimeError as exc:
+        return RedirectResponse(redirect_with_flash("/", "error", str(exc)), status_code=303)
+    msg = result.message or f"Cluster {result.state.phase}: {len(_store.joined_workers(result.state))} workers joined"
+    flash = "ok" if result.success else "warn"
+    return RedirectResponse(redirect_with_flash("/", flash, msg), status_code=303)
 
 
 @app.post("/actions/stop-cluster")
 def action_stop_cluster() -> RedirectResponse:
     stop_cluster(canfar=_canfar, store=_store)
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse(redirect_with_flash("/", "ok", "Cluster stopped"), status_code=303)
 
 
 @app.post("/actions/reconcile")
 def action_reconcile() -> RedirectResponse:
-    reconcile_cluster(canfar=_canfar, store=_store)
-    return RedirectResponse("/", status_code=303)
+    state = reconcile_cluster(canfar=_canfar, store=_store)
+    joined = len(_store.joined_workers(state)) if state else 0
+    return RedirectResponse(
+        redirect_with_flash("/", "ok", f"Reconciled — {joined} worker(s) joined"),
+        status_code=303,
+    )
+
+
+@app.post("/actions/clean-orphans")
+def action_clean_orphans() -> RedirectResponse:
+    try:
+        destroyed = clean_orphaned_workers(settings=_settings, canfar=_canfar, store=_store)
+    except RuntimeError as exc:
+        return RedirectResponse(redirect_with_flash("/", "error", str(exc)), status_code=303)
+    return RedirectResponse(
+        redirect_with_flash("/", "ok", f"Cleaned {len(destroyed)} orphaned session(s)"),
+        status_code=303,
+    )
+
+
+@app.post("/actions/retry-worker/{session_id}")
+def action_retry_worker(session_id: str) -> RedirectResponse:
+    try:
+        worker = retry_worker(
+            settings=_settings,
+            canfar=_canfar,
+            store=_store,
+            heartbeat_path=str(_heartbeat_path()),
+            session_id=session_id,
+        )
+    except RuntimeError as exc:
+        return RedirectResponse(redirect_with_flash("/", "error", str(exc)), status_code=303)
+    msg = f"Retry {worker.name}: {'joined' if worker.ray_joined else worker.phase}"
+    flash = "ok" if worker.ray_joined else "warn"
+    return RedirectResponse(redirect_with_flash("/", flash, msg), status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
-def index() -> str:
+def index(request: Request) -> str:
     _touch_heartbeat()
     auth = _canfar.auth_status()
     state = reconcile_cluster(canfar=_canfar, store=_store)
     preflight = (state.preflight if state else None) or {}
+    flash = request.query_params.get("flash")
+    flash_msg = request.query_params.get("msg")
 
     workers_html = ""
     if state and state.workers:
@@ -279,8 +322,8 @@ def index() -> str:
             retry = ""
             if w.phase in {"CANFAR Failed", "Ray Unhealthy", "Orphaned"}:
                 retry = (
-                    f'<form style="display:inline" method="post" '
-                    f'action="/api/v1/workers/{w.session_id}/retry">'
+                    f'<form class="inline" method="post" '
+                    f'action="/actions/retry-worker/{w.session_id}">'
                     f'<button type="submit">Retry</button></form>'
                 )
             rows.append(
@@ -291,34 +334,37 @@ def index() -> str:
                 f"<td>{w.last_error or ''} {retry}</td></tr>"
             )
         workers_html = (
-            "<table border='1' cellpadding='4'>"
-            "<tr><th>Name</th><th>Session</th><th>Phase</th><th>CANFAR</th>"
+            "<table><tr><th>Name</th><th>Session</th><th>Phase</th><th>CANFAR</th>"
             "<th>IP</th><th>Ray</th><th>Notes</th></tr>"
             + "".join(rows)
             + "</table>"
         )
 
     auth_line = (
-        f"<span style='color:green'>Authenticated ({auth.idp})</span>"
+        f'<span class="status-ok">Authenticated ({auth.idp})</span>'
         if auth.authenticated
         else (
-            "<span style='color:red'>Not authenticated</span> — "
-            "run <code>canfar auth login</code> in a terminal session, then refresh."
+            '<span class="status-bad">Not authenticated</span> — '
+            "run <code>canfar auth login</code> in an AstroAI <strong>webterm</strong> or "
+            "<strong>vscode</strong> session first (credentials persist on <code>/arc/home</code>), "
+            "then refresh this page."
         )
     )
     pf_line = (
-        f"<span style='color:green'>Passed</span> (worker IP {preflight.get('worker_ip', '?')})"
+        f'<span class="status-ok">Passed</span> (probe worker {preflight.get("worker_ip", "?")})'
         if preflight.get("passed")
-        else "<span style='color:orange'>Not run or failed</span>"
+        else '<span class="status-warn">Not run or failed</span> — run preflight before creating a cluster'
     )
     cluster_phase = state.phase if state else "Idle"
     joined = len(_store.joined_workers(state)) if state else 0
     target = state.worker_count if state else 0
 
     return f"""<!DOCTYPE html>
-<html><head><title>CANFAR Ray Manager</title></head>
+<html><head><meta charset="utf-8"><title>CANFAR Ray Manager</title>
+<style>{PAGE_STYLE}</style></head>
 <body>
   <h1>CANFAR Ray Manager</h1>
+  {flash_html(flash, flash_msg)}
   <p>Ray: <code>{ray_address()}</code> · cluster <code>{_settings.cluster_id}</code></p>
   <p>Cluster phase: <strong>{cluster_phase}</strong> · workers joined: {joined}/{target or '—'}</p>
   <p>CANFAR auth: {auth_line}</p>
@@ -326,27 +372,31 @@ def index() -> str:
   <p>Live Ray nodes: {count_live_nodes()}</p>
   <h2>Create cluster</h2>
   <form method="post" action="/actions/create-cluster">
-    <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16"></label>
-    <label>CPUs/worker <input name="cores" type="number" value="1" min="1"></label>
-    <label>RAM GB/worker <input name="ram_gb" type="number" value="4" min="1"></label>
-    <label>Min joined <input name="min_joined" type="number" value="2" min="1"></label>
-    <label>Partial policy
-      <select name="partial_policy">
-        <option value="accept_partial">accept partial</option>
-        <option value="fail_and_cleanup">fail and cleanup</option>
-        <option value="continue_waiting">continue waiting</option>
-      </select>
-    </label>
+    <div class="grid">
+      <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16"></label>
+      <label>CPUs/worker <input name="cores" type="number" value="1" min="1"></label>
+      <label>RAM GB/worker <input name="ram_gb" type="number" value="4" min="1"></label>
+      <label>Min joined <input name="min_joined" type="number" value="2" min="1"></label>
+      <label>Partial policy
+        <select name="partial_policy">
+          <option value="accept_partial">accept partial</option>
+          <option value="fail_and_cleanup">fail and cleanup</option>
+          <option value="continue_waiting">continue waiting</option>
+        </select>
+      </label>
+    </div>
     <button type="submit">Create cluster</button>
   </form>
   <h2>Maintenance</h2>
-  <form method="post" action="/actions/preflight"><button type="submit">Run network preflight</button></form>
-  <form method="post" action="/actions/reconcile"><button type="submit">Reconcile state</button></form>
-  <form method="post" action="/actions/stop-cluster"><button type="submit">Stop cluster</button></form>
-  <form method="post" action="/api/v1/cluster/clean-orphans"><button type="submit">Clean orphaned workers</button></form>
+  <div class="actions">
+    <form method="post" action="/actions/preflight"><button type="submit">Run network preflight</button></form>
+    <form method="post" action="/actions/reconcile"><button type="submit">Reconcile state</button></form>
+    <form method="post" action="/actions/stop-cluster"><button type="submit">Stop cluster</button></form>
+    <form method="post" action="/actions/clean-orphans"><button type="submit">Clean orphaned workers</button></form>
+  </div>
   <h2>Workers</h2>
   {workers_html or "<p>No workers recorded.</p>"}
-  <p><a href="/api/v1/status">JSON status</a> · <a href="/healthz">healthz</a></p>
+  <p><a href="/api/v1/status">JSON status</a> · <a href="/api/v1/auth/status">Auth status</a> · <a href="/healthz">healthz</a></p>
 </body></html>"""
 
 

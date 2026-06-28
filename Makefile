@@ -22,9 +22,9 @@ help:
 	@echo "  make push-all           push session images to Harbor"
 	@echo "  make push-ray           push Ray images to Harbor"
 	@echo "  make test-local         verify session images locally"
-	@echo "  make test-ray           Ray container + local cluster tests"
+	@echo "  make test-ray           Ray container + local cluster + UI tests"
 	@echo "  make test-canfar        post-push headless verify on CANFAR"
-	@echo "  make test-canfar-ray    Milestone B: manager launches worker on CANFAR"
+	@echo "  make test-canfar-ray    CANFAR: manager UI + 2-worker cluster lifecycle"
 	@echo "  make clean              remove local $(IMAGE_PREFIX)/* images"
 	@echo "  make clean-all          clean + prune buildx cache"
 	@echo ""
@@ -62,17 +62,19 @@ test-local: ## verify session images
 		./scripts/test-local.sh "$$img" --verify-only || exit 1; \
 	done
 
-test-ray: build-ray ## Ray image checks + local cluster join
-	chmod +x scripts/test-ray-*.sh scripts/ray-head-start.sh scripts/startup-ray-manager.sh \
-		scripts/ray-network-probe.sh ray/worker/start-worker.sh
+test-ray: build-ray build/base ## Ray image checks + local cluster join + UI
+	chmod +x scripts/test-ray-*.sh scripts/test-canfar-lab-loop.sh scripts/ray-head-start.sh \
+		scripts/startup-ray-manager.sh scripts/ray-network-probe.sh ray/worker/start-worker.sh
 	./scripts/test-ray-containers.sh
 	./scripts/test-ray-local.sh
 	./scripts/test-ray-cluster-local.sh
+	./scripts/test-ray-ui-local.sh
+	./scripts/test-canfar-lab-loop.sh
 
 test-canfar:
 	./scripts/test-canfar.sh $(or $(IMAGE),base) $(TAG)
 
-test-canfar-ray: ## Milestone B — CANFAR manager + worker join
+test-canfar-ray: ## CANFAR manager UI + 2-worker cluster lifecycle
 	chmod +x scripts/test-canfar-ray.sh
 	./scripts/test-canfar-ray.sh $(TAG)
 

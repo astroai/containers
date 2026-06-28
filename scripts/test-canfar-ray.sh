@@ -153,6 +153,30 @@ if ! printf '%s' "${AUTH_JSON}" | python3 -c "import json,sys; d=json.load(sys.s
 fi
 
 echo ""
+echo "Checking Ray manager UI..."
+HTML="$(api_curl "${MANAGER_URL}/" 2>/dev/null || true)"
+if [[ -z "${HTML}" ]]; then
+    echo "  FAIL could not fetch manager HTML" >&2
+    FAILURES=$((FAILURES + 1))
+else
+    for needle in "CANFAR Ray Manager" '/actions/create-cluster' '/actions/preflight' '/actions/clean-orphans'; do
+        if grep -q "${needle}" <<< "${HTML}"; then
+            echo "  ok  UI contains ${needle}"
+        else
+            echo "  FAIL UI missing ${needle}" >&2
+            FAILURES=$((FAILURES + 1))
+        fi
+    done
+    CODE="$(api_curl -o /dev/null -w '%{http_code}' -X POST "${MANAGER_URL}/actions/reconcile" 2>/dev/null || echo 000)"
+    if [[ "${CODE}" == "303" ]]; then
+        echo "  ok  reconcile action redirects (303)"
+    else
+        echo "  FAIL reconcile action HTTP ${CODE} (expected 303)" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+fi
+
+echo ""
 echo "Running network preflight..."
 PF_JSON="$(api_curl -X POST "${MANAGER_URL}/api/v1/preflight/run" || true)"
 echo "${PF_JSON}" | python3 -m json.tool || echo "${PF_JSON}"

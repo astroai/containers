@@ -84,6 +84,21 @@ uv run python -c "print('ok')"
 
 Rebuild the **parent** when you change shared layers — e.g. profile changes need `make build/base` (or `build/webterm` which pulls parents).
 
+## Ray and canfar-lab tests
+
+```bash
+make test-ray BUILD_TAG=local          # Ray images, local cluster, manager UI, canfar-lab loop
+make test-canfar-ray TAG=26.06         # after push: CANFAR manager UI + 2-worker cluster
+```
+
+| Script | What it checks |
+|--------|----------------|
+| `scripts/test-ray-ui-local.sh` | Manager HTML forms, JSON endpoints, action redirects |
+| `scripts/test-canfar-lab-loop.sh` | Cold start → `env save` → `env resume` inside `base` image |
+| `scripts/test-canfar-ray.sh` | Contributed manager on CANFAR: auth, preflight, cluster, UI |
+
+**canfar-lab** integration tests live in [sfabbro/canfar-lab](https://github.com/sfabbro/canfar-lab) (`tests/integration/test_cold_start_save_resume.py`).
+
 ## Pull request workflow
 
 ```bash

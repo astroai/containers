@@ -30,7 +30,19 @@ The manager launches workers with the **`canfar` Python client**. Run once from 
 canfar auth login
 ```
 
-Config persists under `/arc/home/<you>/.config/canfar/` and is reused by **ray-manager** sessions.
+Credentials persist on **`/arc/home/<you>/`** as `~/.canfar/config.yaml` (and optionally `~/.ssl/cadcproxy.pem`). Ray-manager sessions reuse the same home volume.
+
+## Web UI
+
+Contributed **`ray-manager`** serves a browser UI on port **5000** (same as webterm/vscode). Forms POST to `/actions/*` and redirect back with flash messages; JSON automation uses `/api/v1/*`.
+
+After launch, open the session connect URL and verify:
+
+- CANFAR auth line shows **Authenticated**
+- **Run network preflight** before first cluster create
+- Worker table shows session IDs, phases, and **Retry** for failed workers
+
+Local smoke: `./scripts/test-ray-ui-local.sh` (included in `make test-ray`). On CANFAR: `make test-canfar-ray TAG=26.06` checks HTML + API after push.
 
 ## Cluster workflow (Milestone C)
 
