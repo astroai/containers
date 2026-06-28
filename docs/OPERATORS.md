@@ -220,7 +220,7 @@ The report has 10 sections:
 | Section | Details for operators |
 |---------|----------------------|
 | Session | Home, **`TMP_SRC_DIR`**, **`TMP_SCRATCH_DIR`**, TMPDIR, shell PID, system uptime |
-| Profile | `ASTROAI_PROFILE_LOADED` guard, PATH layout, uv/pixi/cache directory locations |
+| Profile | `CANFAR_LAB_PROFILE_LOADED` guard, image PATH, session env via canfar-lab |
 | GPU | `nvidia-smi` query (GPU index, driver, VRAM, temp, utilization) + GPU process listing |
 | Disk | **`TMP_SRC_DIR`**, **`TMP_SCRATCH_DIR`**, and HOME `df`, top directories by size |
 | Tools | Version check for pre-installed dev, file, and CADC tools |

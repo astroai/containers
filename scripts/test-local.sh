@@ -72,7 +72,7 @@ if [[ "${VERIFY_ONLY}" -eq 1 ]]; then
         if [[ -f /cadc/common-init.sh ]]; then
             source /cadc/common-init.sh
             # Legacy images exported the guard — ensure login children still work.
-            export ASTROAI_PROFILE_LOADED=1
+            export CANFAR_LAB_PROFILE_LOADED=1
         elif [[ -f /etc/profile.d/astroai.sh ]]; then
             source /etc/profile.d/astroai.sh
         else

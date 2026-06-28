@@ -120,8 +120,8 @@ wiped when the session ends). AstroAI keeps code and data separate:
 |-----------------|--------------|-------------------|
 | **`TMP_SRC_DIR`** (default **`/srcdir`**) | Git repos, pixi/uv projects, workspace bundles | **Ephemeral** |
 | **`TMP_SCRATCH_DIR`** (default **`/scratch`**) | Staged datasets, training outputs, download caches, `TMPDIR` | **Ephemeral** |
-| `/arc/home/$USER` | SSH keys, dotfiles, env save manifests, AI tools, ML caches | **Persistent** |
-| `/arc/projects/<group>/` | Shared team data (ACL-controlled) | **Persistent** |
+| `/arc/home/$USER` | SSH keys, agent MCP config, tiny save manifests | **Persistent, small quota** |
+| `/arc/projects/<group>/` | Shared team data, team env-saves, team `.local/bin` | **Persistent** |
 | `/cvmfs/` | DRAC / Alliance software (read-only) | Persistent on nodes; lazy-mounted |
 
 On Contributed session startup, `common-init` **`cd`s to `TMP_SRC_DIR`**.
@@ -129,9 +129,12 @@ Run `canfar-lab doctor` to see resolved paths (`TMP_SRC_DIR`, `TMP_SCRATCH_DIR`,
 
 ### The golden rule
 
-**Code goes in `TMP_SRC_DIR`, gets backed up with `git push`.** Both ephemeral
-directories are fast but temporary. Your home on `/arc` is persistent but smaller
-and slower — use it for config, caches, and small manifests.
+**Code goes in `TMP_SRC_DIR`, gets backed up with `git push`.** Use **`TMP_SCRATCH_DIR`**
+for data, download caches, and session runtime installs (`CANFAR_LAB_BIN_DIR`, uv/pixi
+roots). Keep **`/arc/home` tiny** — config and lockfile saves only; avoid pip/uv/pixi/npm
+under `$HOME`.
+
+Run `canfar-lab doctor` for `user_bin`, `npm_prefix`, `runtime_root`, and cache paths.
 
 ### Overriding the defaults
 
@@ -142,19 +145,18 @@ TMP_SRC_DIR=/custom/code
 TMP_SCRATCH_DIR=/custom/scratch
 ```
 
-Legacy alias: `ASTROAI_WORK_ROOT` still works when `TMP_SRC_DIR` is unset.
+Set `TMP_SRC_DIR` explicitly when the default code root is not suitable.
 
 ### What goes where
 
 | Location | Keep here | Avoid |
 |----------|----------|-------|
 | **`TMP_SRC_DIR`** (`/srcdir`) | Repos, active `.pixi`/`.venv` envs | Assuming it persists — always `git push` |
-| **`TMP_SCRATCH_DIR`** (`/scratch`) | Staged datasets, training outputs, download caches | Assuming it persists — `canfar-lab data sync` |
-| `~/.astroai/saves/` | Lockfile manifests (small) | `--full` packs unless necessary |
-| `~/.cache/huggingface` | OK — `canfar-lab clean home --hf` | Large model re-downloads |
-| `~/.cache/torch`, matplotlib, other ML | `canfar-lab clean home --ml` | Unbounded caches |
-| `~/.local/bin` | AI tools, small user binaries | Large vendored SDKs |
+| **`TMP_SCRATCH_DIR`** (`/scratch`) | Staged data, caches, `CANFAR_LAB_BIN_DIR`, runtime uv/pixi | Assuming it persists — `canfar-lab data sync` |
+| `~/.canfar/lab/saves/` | Lockfile manifests (small) | `--full` packs unless necessary |
+| `/arc/projects/<group>/.local/` | Shared team CLI tools (persistent) | Personal copies in `$HOME` |
 | `/arc/projects/<group>/` | Shared datasets, team env-saves | Personal scratch copies |
+| `$HOME` | Agent MCP, gh auth, matplotlib config | pixi/uv envs, npm globals, HF models |
 
 ### Periodic reminders
 
@@ -503,7 +505,7 @@ gh run list --limit 5             # recent CI runs
 | `canfar-lab status` | Disk breakdown under `$HOME` |
 | `canfar-lab clean home` | Clear re-downloadable junk on `/arc` (`--all-safe`, `--stale-pkg`, `--ml`, `--hf`, `--dry-run`) |
 | `canfar-lab clean cache` | Clear scratch download caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--conda`, `--hf`) |
-| `canfar-lab agent install <tool>` | Install AI tools to `~/.local/bin` (`--list`) |
+| `canfar-lab agent install <tool>` | Install AI tools to `$CANFAR_LAB_BIN_DIR` (`--list`) |
 | `canfar-lab agent models free` | Apply free-tier model presets (OpenRouter + Kilo) |
 | `canfar-lab doctor` | Diagnostic report (`--stdout`, `--file`) |
 
@@ -667,7 +669,8 @@ canfar-lab agent install node             # Node.js + npm (needed for cline, pi,
 canfar-lab agent install --list           # see everything available
 ```
 
-Binaries land in `~/.local/bin` on `/arc` — they persist across sessions.
+Binaries land in `$CANFAR_LAB_BIN_DIR` (scratch when mounted, else team project or home).
+Prefer **pixi/uv project envs under `TMP_SRC_DIR`** over global installs.
 
 ### AI coding agents (3 commands)
 
@@ -796,16 +799,19 @@ go there — not under `$HOME`:
 | `PIP_CACHE_DIR` | `${TMP_SCRATCH_DIR}/.cache-$USER/pip` | pip wheel cache |
 | `NPM_CONFIG_CACHE` | `${TMP_SCRATCH_DIR}/.cache-$USER/npm` | npm download cache |
 | `PIXI_CACHE_DIR` | `${TMP_SCRATCH_DIR}/.cache-$USER/pixi` | pixi package cache |
-| `PIXI_HOME` | `~/.pixi` | pixi global config on `/arc` |
 | `MAMBA_PKGS_DIRS` | `${TMP_SCRATCH_DIR}/.cache-$USER/conda/pkgs` | micromamba/conda cache |
 | `CONDA_PKGS_DIRS` | same as `MAMBA_PKGS_DIRS` | conda-compatible alias |
-| `MAMBA_ROOT_PREFIX` | `~/.local/share/micromamba` | micromamba config on `/arc` |
 | `TMPDIR` | `${TMP_SCRATCH_DIR}/.tmp-$USER` | Compile/temp files on SSD |
-| `UV_PYTHON_INSTALL_DIR` | `~/.local/share/uv/python` | uv-managed Python installs |
-| `UV_TOOL_DIR` | `~/.local/share/uv/tools` | uv tool environments |
-| `XDG_CACHE_HOME` | `~/.cache` | ML/tool caches on `/arc` |
-| `HF_HOME` | `~/.cache/huggingface` | Hugging Face models |
-| `TORCH_HOME` | `~/.cache/torch` | PyTorch hub checkpoints |
+| `CANFAR_LAB_BIN_DIR` | `${TMP_SCRATCH_DIR}/.local/bin` | User CLI installs (AI agents) |
+| `CANFAR_LAB_NPM_PREFIX` | `${TMP_SCRATCH_DIR}/.local` | npm global prefix |
+| `CANFAR_LAB_RUNTIME_ROOT` | `${TMP_SCRATCH_DIR}/.runtime-$USER` | uv/pixi/micromamba runtime |
+| `PIXI_HOME` | `${CANFAR_LAB_RUNTIME_ROOT}/pixi` | pixi global metadata (session-local on scratch) |
+| `MAMBA_ROOT_PREFIX` | `${CANFAR_LAB_RUNTIME_ROOT}/micromamba` | micromamba env root |
+| `UV_PYTHON_INSTALL_DIR` | `${CANFAR_LAB_RUNTIME_ROOT}/uv/python` | uv-managed Python installs |
+| `UV_TOOL_DIR` | `${CANFAR_LAB_RUNTIME_ROOT}/uv/tools` | uv tool environments |
+| `HF_HOME` | `${TMP_SCRATCH_DIR}/.cache-$USER/huggingface` | Hugging Face models |
+| `TORCH_HOME` | `${TMP_SCRATCH_DIR}/.cache-$USER/torch` | PyTorch hub checkpoints |
+| `XDG_CACHE_HOME` | `~/.cache` | Tiny UI config only (matplotlib) |
 
 If scratch isn't mounted, caches fall back under `TMP_SRC_DIR/.cache-$USER/`.
 
@@ -914,11 +920,10 @@ AstroAI profile (`/etc/profile.d/astroai.sh`) sets unless overridden:
 
 | Variable | Image default | Purpose |
 |----------|---------------|---------|
-| `ASTROAI_DEFAULT_SRC_DIR` | `/srcdir` | Default code root when `TMP_SRC_DIR` unset |
-| `ASTROAI_DEFAULT_SCRATCH_DIR` | `/scratch` | Default scratch when `TMP_SCRATCH_DIR` unset |
+| `CANFAR_LAB_DEFAULT_SRC_DIR` | `/srcdir` | Default code root when `TMP_SRC_DIR` unset |
+| `CANFAR_LAB_DEFAULT_SCRATCH_DIR` | `/scratch` | Default scratch when `TMP_SCRATCH_DIR` unset |
 | `TMP_SRC_DIR` | resolved at login | Code, git repos, pixi/uv projects |
 | `TMP_SCRATCH_DIR` | `/scratch` | Datasets, download caches, `TMPDIR` parent |
-| `ASTROAI_WORK_ROOT` | — | Legacy alias for code root (deprecated) |
 
 Run `canfar-lab doctor` to see resolved values.
 
@@ -937,7 +942,7 @@ canfar-lab doctor --file /path/out    # save to custom path
 | Section | What it shows |
 |---------|---------------|
 | Session | Home, `TMP_SRC_DIR`, `TMP_SCRATCH_DIR`, tmp, shell, uptime |
-| Profile | ASTROAI_PROFILE_LOADED, PATH, uv/pixi/cache dirs |
+| Profile | `CANFAR_LAB_PROFILE_LOADED`, PATH, uv/pixi/cache dirs (via `canfar-lab env export`) |
 | GPU | nvidia-smi summary and processes (or CPU node notice) |
 | Disk | `TMP_SRC_DIR`, `TMP_SCRATCH_DIR`, and HOME `df`, top dirs |
 | Tools | Version check for git, gh, uv, pixi, jq, rg, fd, bat, and more |

@@ -7,10 +7,9 @@ if [[ -f /etc/profile.d/astroai.sh ]]; then
 fi
 
 _cache_dirs=(
-    "${HOME}/.local/bin"
-    "${HOME}/.local/share/uv/python"
-    "${HOME}/.local/share/uv/tools"
-    "${HOME}/.astroai/saves"
+    "${CANFAR_LAB_BIN_DIR:-${HOME}/.local/bin}"
+    "${CANFAR_LAB_SAVE_DIR:-${HOME}/.canfar/lab/saves}"
+    "${CANFAR_LAB_CONFIG_DIR:-${HOME}/.canfar/lab}"
     "${HOME}/.ssh"
     "${XDG_CONFIG_HOME:-${HOME}/.config}"
     "${XDG_CACHE_HOME:-${HOME}/.cache}"
@@ -52,17 +51,18 @@ mkdir -p "${_src_root}"
 cd "${_src_root}"
 
 # Track session start time for canfar-lab status; reset per-session auto-archive markers
-mkdir -p "${HOME}/.astroai"
-date -u +%s > "${HOME}/.astroai/session-started"
-rm -f "${HOME}/.astroai/auto-archived" "${HOME}"/.astroai/auto-archived-*
+_state="${CANFAR_LAB_CONFIG_DIR:-${HOME}/.canfar/lab}"
+mkdir -p "${_state}"
+date -u +%s > "${_state}/session-started"
+rm -f "${_state}/auto-archived" "${_state}"/auto-archived-*
 
-if [[ ! -f "${HOME}/.astroai/welcomed" ]]; then
-    touch "${HOME}/.astroai/welcomed"
+if [[ ! -f "${_state}/welcomed" ]]; then
+    touch "${_state}/welcomed"
     if [[ -t 1 ]]; then
         cat <<'WELCOME'
 
   ╔══════════════════════════════════════════════════════╗
-  ║       Welcome to AstroAI on CANFAR!                 ║
+  ║       Welcome to CANFAR Lab!                        ║
   ╚══════════════════════════════════════════════════════╝
 
   Quick start:
@@ -75,15 +75,16 @@ if [[ ! -f "${HOME}/.astroai/welcomed" ]]; then
     canfar-lab push                     save everything before closing
 
   Storage:
-    TMP_SRC_DIR     code + env (see canfar-lab doctor)
-    TMP_SCRATCH_DIR datasets + caches when mounted
-    /arc/home       persistent config, saves, AI tools in ~/.local
+    TMP_SRC_DIR         code + env (see canfar-lab doctor)
+    TMP_SCRATCH_DIR     datasets + caches when mounted
+    CANFAR_LAB_BIN_DIR  agent CLI installs (scratch when mounted)
+    /arc/home           persistent config in ~/.canfar/lab
 
   Getting help:
     canfar-lab guide                    full command list
     less /opt/astroai/USAGE.md          detailed usage guide
 
-  AI coding agents (once per user, persists on /arc):
+  AI coding agents (once per user, persists on scratch or team project):
     canfar-lab agent setup              MCP + skills — run this first
     canfar-lab agent install agent      or claude, goose, opencode, codex
     canfar-lab agent update             refresh after image upgrade
@@ -103,5 +104,5 @@ WEBTERM
 fi
 
 # Startup scripts exec(3) into ttyd/jupyter/etc. Drop the profile guard so login
-# children (bash -l in webterm tmux) re-source astroai.sh after /etc/profile.
-unset ASTROAI_PROFILE_LOADED
+# children (bash -l in webterm tmux) re-source profile after /etc/profile.
+unset CANFAR_LAB_PROFILE_LOADED

@@ -12,7 +12,7 @@ elif [[ -f "${BASH_SOURCE[0]%/*}/astroai-ui.sh" ]]; then
 fi
 
 astroai_save_root() {
-    echo "${ASTROAI_SAVE_DIR:-${HOME}/.astroai/saves}"
+    echo "${CANFAR_LAB_SAVE_DIR:-${HOME}/.canfar/lab/saves}"
 }
 
 astroai_ensure_save_root() {
@@ -71,13 +71,13 @@ astroai_env_warm_cache() {
 }
 
 # Copy a saved lockfile into the current project when upstream omitted one.
-# Sets ASTROAI_BOOTSTRAP_LOCK=1 when a lock was copied (caller may need fallback).
+# Sets CANFAR_LAB_BOOTSTRAP_LOCK=1 when a lock was copied (caller may need fallback).
 astroai_env_bootstrap_lock() {
     local save_dir="$1"
     local project_kind="$2"
     local save_kind
 
-    ASTROAI_BOOTSTRAP_LOCK=0
+    CANFAR_LAB_BOOTSTRAP_LOCK=0
     save_kind="$(jq -r .kind "${save_dir}/manifest.json")"
 
     if [[ "${project_kind}" != "${save_kind}" ]]; then
@@ -91,7 +91,7 @@ astroai_env_bootstrap_lock() {
             [[ -f pixi.lock ]] && return 0
             [[ -f "${save_dir}/pixi.lock" ]] || return 0
             cp -a "${save_dir}/pixi.lock" ./pixi.lock
-            ASTROAI_BOOTSTRAP_LOCK=1
+            CANFAR_LAB_BOOTSTRAP_LOCK=1
             astroai_hint "Bootstrap: copied pixi.lock from saved env (session-local)."
             astroai_hint "Publish for OSS: pixi lock && git add pixi.lock && git commit"
             ;;
@@ -100,7 +100,7 @@ astroai_env_bootstrap_lock() {
             [[ -f uv.lock ]] && return 0
             [[ -f "${save_dir}/uv.lock" ]] || return 0
             cp -a "${save_dir}/uv.lock" ./uv.lock
-            ASTROAI_BOOTSTRAP_LOCK=1
+            CANFAR_LAB_BOOTSTRAP_LOCK=1
             astroai_hint "Bootstrap: copied uv.lock from saved env (session-local)."
             astroai_hint "Publish for OSS: uv lock && git add uv.lock && git commit"
             ;;
@@ -135,11 +135,11 @@ astroai_timestamp() {
 
 # Runtime paths — set TMP_SRC_DIR / TMP_SCRATCH_DIR to override; defaults from image ENV only.
 astroai_default_src_dir() {
-    echo "${ASTROAI_DEFAULT_SRC_DIR:-/srcdir}"
+    echo "${CANFAR_LAB_DEFAULT_SRC_DIR:-/srcdir}"
 }
 
 astroai_default_scratch_dir() {
-    echo "${ASTROAI_DEFAULT_SCRATCH_DIR:-/scratch}"
+    echo "${CANFAR_LAB_DEFAULT_SCRATCH_DIR:-/scratch}"
 }
 
 astroai_scratch_dir() {
@@ -158,11 +158,6 @@ astroai_src_dir() {
         echo "${TMP_SRC_DIR}"
         return
     fi
-    # Legacy alias (deprecated)
-    if [[ -n "${ASTROAI_WORK_ROOT:-}" ]]; then
-        echo "${ASTROAI_WORK_ROOT}"
-        return
-    fi
     local _default_src
     _default_src="$(astroai_default_src_dir)"
     if [[ -d "${_default_src}" && -w "${_default_src}" ]]; then
@@ -176,7 +171,7 @@ astroai_src_dir() {
 
 # Fast SSD workspace snapshots for offline batch (never run software from /arc).
 astroai_workspace_root() {
-    echo "$(astroai_src_dir)/.astroai/workspaces"
+    echo "$(astroai_src_dir)/.canfar-lab/workspaces"
 }
 
 astroai_scratch_cache_root() {
@@ -186,6 +181,41 @@ astroai_scratch_cache_root() {
     else
         echo "$(astroai_src_dir)/.cache-${_user}"
     fi
+}
+
+# Heavy runtime installs — resolved by canfar-lab profile (CANFAR_LAB_RUNTIME_ROOT).
+astroai_runtime_root() {
+    echo "${CANFAR_LAB_RUNTIME_ROOT:-$(astroai_src_dir)/.runtime-${USER:-$(id -un)}}"
+}
+
+# Team-shared persistent tooling under /arc/projects/<group>/.local (not user home).
+astroai_team_local_root() {
+    local proj
+    proj="$(astroai_find_arc_project_root "${PWD}")"
+    [[ -n "${proj}" ]] || return 1
+    echo "${proj}/.local"
+}
+
+# User CLI binaries — resolved by canfar-lab profile (CANFAR_LAB_BIN_DIR).
+astroai_user_bin() {
+    echo "${CANFAR_LAB_BIN_DIR:-${HOME}/.local/bin}"
+}
+
+# npm global prefix — resolved by canfar-lab profile (CANFAR_LAB_NPM_PREFIX).
+astroai_npm_prefix() {
+    if [[ -n "${NPM_CONFIG_PREFIX:-}" ]]; then
+        echo "${NPM_CONFIG_PREFIX}"
+        return
+    fi
+    echo "${CANFAR_LAB_NPM_PREFIX:-${HOME}/.local}"
+}
+
+astroai_team_bin() {
+    local team_local
+    team_local="$(astroai_team_local_root 2>/dev/null)" || return 1
+    local bin="${team_local}/bin"
+    mkdir -p "${bin}" 2>/dev/null || return 1
+    echo "${bin}"
 }
 
 astroai_workspace_bundle_dir() {

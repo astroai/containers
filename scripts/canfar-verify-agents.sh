@@ -60,8 +60,11 @@ install_cmd_for() {
 
 install_path_candidates() {
     local tool="$1"
-    local cmd
+    local cmd path
     cmd="$(install_cmd_for "${tool}")"
+    if [[ -n "${CANFAR_LAB_BIN_DIR:-}" ]]; then
+        printf '%s\n' "${CANFAR_LAB_BIN_DIR}/${cmd}"
+    fi
     printf '%s\n' "${HOME}/.local/bin/${cmd}"
     case "${tool}" in
         opencode) printf '%s\n' "${HOME}/.opencode/bin/opencode" ;;

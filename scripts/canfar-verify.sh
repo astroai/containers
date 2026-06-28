@@ -72,6 +72,9 @@ if [[ "${QUICK}" -eq 0 ]]; then
         for var in UV_CACHE_DIR PIP_CACHE_DIR NPM_CONFIG_CACHE PIXI_CACHE_DIR MAMBA_PKGS_DIRS CONDA_PKGS_DIRS; do
             check "${var} under TMP_SCRATCH_DIR" login_shell "[[ \"\${${var}}\" == \"\${TMP_SCRATCH_DIR}\"/* ]]"
         done
+        check "CANFAR_LAB_BIN_DIR on scratch" login_shell '[[ "${CANFAR_LAB_BIN_DIR}" == "${TMP_SCRATCH_DIR}"/* ]]'
+        check "UV_PYTHON_INSTALL_DIR off home" login_shell '[[ "${UV_PYTHON_INSTALL_DIR}" != "${HOME}"/* ]]'
+        check "PIXI_HOME off home when scratch mounted" login_shell '[[ "${PIXI_HOME}" != "${HOME}/.pixi" ]]'
     elif login_shell '[[ -n "${TMP_SRC_DIR:-}" ]]'; then
         for var in UV_CACHE_DIR PIP_CACHE_DIR NPM_CONFIG_CACHE PIXI_CACHE_DIR MAMBA_PKGS_DIRS CONDA_PKGS_DIRS; do
             check "${var} under TMP_SRC_DIR" login_shell "[[ \"\${${var}}\" == \"\${TMP_SRC_DIR}\"/* ]]"
