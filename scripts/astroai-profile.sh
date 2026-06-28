@@ -6,13 +6,13 @@ if [ -z "${BASH_VERSION:-}" ]; then
     return 0 2>/dev/null || exit 0
 fi
 
-[[ -f /etc/canfar-lab/profile.sh ]] && source /etc/canfar-lab/profile.sh
-
-# CADC venv and image scripts — after user bins, before rest of PATH.
+# CADC venv first — canfar-lab env export runs from profile.sh below.
 case ":${PATH}:" in
     *":/opt/astroai/venv/cadc/bin:"*) ;;
     *) export PATH="/opt/astroai/venv/cadc/bin:/opt/astroai/bin:${PATH}" ;;
 esac
+
+[[ -f /etc/canfar-lab/profile.sh ]] && source /etc/canfar-lab/profile.sh
 
 # Team + user CLI installs (CANFAR_LAB_BIN_DIR) ahead of platform paths.
 if [[ -n "${CANFAR_LAB_PATH_PREFIX:-}" ]]; then

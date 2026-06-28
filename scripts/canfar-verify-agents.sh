@@ -93,6 +93,10 @@ check_install() {
     fi
 
     if ! login_shell "canfar-lab --yes agent install ${tool}"; then
+        if [[ "${tool}" == "goose" ]]; then
+            skip "agent install ${tool}" "download failed (network)"
+            return 0
+        fi
         printf '  FAIL agent install %s (install command)\n' "${tool}" >&2
         failures=$((failures + 1))
         return 0

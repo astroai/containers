@@ -46,6 +46,7 @@ check "login shell: vcp" login_shell 'command -v vcp >/dev/null'
 check "login shell: cadc-get-cert" login_shell 'command -v cadc-get-cert >/dev/null'
 check "login shell: canfar-lab" login_shell 'command -v canfar-lab >/dev/null'
 check "canfar-lab doctor" login_shell 'canfar-lab doctor >/dev/null 2>&1'
+check "CANFAR_LAB_BIN_DIR set" login_shell '[[ -n "${CANFAR_LAB_BIN_DIR:-}" ]]'
 check "canfar-lab agent bundle" login_shell 'canfar-lab agent install --list >/dev/null'
 
 for tool in gh rg fd bat fzf hyperfine uv pixi micromamba mamba patch make file xxd hexdump lsof ss host ncdu shellcheck ctags \
@@ -70,10 +71,10 @@ if [[ "${QUICK}" -eq 0 ]]; then
     fi
     if login_shell '[[ -d "${TMP_SCRATCH_DIR}" && -w "${TMP_SCRATCH_DIR}" ]]'; then
         check "session cache root layout" login_shell \
-            'root="${TMP_SCRATCH_DIR}/.cache-${USER}"; [[ "${UV_CACHE_DIR}" == "${root}/"* ]]'
+            'u="${USER:-$(id -un)}"; root="${TMP_SCRATCH_DIR}/.cache-${u}"; [[ "${UV_CACHE_DIR}" == "${root}/"* ]]'
         for var in PIP_CACHE_DIR NPM_CONFIG_CACHE PIXI_CACHE_DIR MAMBA_PKGS_DIRS CONDA_PKGS_DIRS; do
             check "${var} under session cache root" login_shell \
-                "root=\"\${TMP_SCRATCH_DIR}/.cache-\${USER}\"; [[ \"\${${var}}\" == \"\${root}\"/* ]]"
+                "u=\"\${USER:-\$(id -un)}\"; root=\"\${TMP_SCRATCH_DIR}/.cache-\${u}\"; [[ \"\${${var}}\" == \"\${root}\"/* ]]"
         done
         check "CANFAR_LAB_BIN_DIR on scratch" login_shell '[[ "${CANFAR_LAB_BIN_DIR}" == "${TMP_SCRATCH_DIR}"/* ]]'
         check "CANFAR_LAB_RUNTIME_ROOT on scratch" login_shell \
