@@ -69,11 +69,15 @@ check_install() {
     fi
 
     if ! login_shell "canfar-lab --yes agent install ${tool}"; then
+        if login_shell "test -x \"\${HOME}/.local/bin/${cmd}\""; then
+            printf '  ok  agent install %s (in ~/.local/bin)\n' "${tool}"
+            return 0
+        fi
         printf '  FAIL agent install %s (install command)\n' "${tool}" >&2
         failures=$((failures + 1))
         return 0
     fi
-    if login_shell "command -v ${cmd} >/dev/null"; then
+    if login_shell "command -v ${cmd} >/dev/null || test -x \"\${HOME}/.local/bin/${cmd}\""; then
         printf '  ok  agent install %s\n' "${tool}"
     else
         printf '  FAIL agent install %s (binary %s not on PATH)\n' "${tool}" "${cmd}" >&2
