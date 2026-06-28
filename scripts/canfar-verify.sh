@@ -46,7 +46,7 @@ check "login shell: vcp" login_shell 'command -v vcp >/dev/null'
 check "login shell: cadc-get-cert" login_shell 'command -v cadc-get-cert >/dev/null'
 check "login shell: canfar-lab" login_shell 'command -v canfar-lab >/dev/null'
 check "canfar-lab doctor" login_shell 'canfar-lab doctor >/dev/null 2>&1'
-check "canfar-lab agent verify" login_shell 'canfar-lab agent verify >/dev/null 2>&1'
+check "canfar-lab agent bundle" login_shell 'canfar-lab agent install --list >/dev/null'
 
 for tool in gh rg fd bat fzf hyperfine uv pixi micromamba mamba patch make file xxd hexdump lsof ss host ncdu shellcheck ctags \
     gcc g++ gfortran ld ar rustc cargo \
