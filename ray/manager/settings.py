@@ -47,7 +47,22 @@ class ManagerSettings:
 def manager_pod_ip() -> str:
     explicit = os.environ.get("RAY_NODE_IP_ADDRESS", "").strip()
     if explicit:
-        return explicit
+        return explicit.split()[0]
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            ["hostname", "-i"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        ip = out.stdout.strip().split()[0]
+        if ip and ip != "127.0.0.1":
+            return ip
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, IndexError):
+        pass
     return socket.gethostbyname(socket.gethostname())
 
 

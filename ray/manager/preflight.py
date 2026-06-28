@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -55,6 +56,20 @@ def run_preflight(
     ports = ray_probe_ports()
     tag_safe = time.strftime("%Y%m%d%H%M%S")
     probe_name = f"ray-preflight-{settings.cluster_id}-{tag_safe}"[:60]
+
+    if not _wait_manager_ports(manager_ip, ports, timeout_seconds=90):
+        report = PreflightReport(
+            passed=False,
+            manager_ip=manager_ip,
+            worker_ip=None,
+            worker_to_manager=[],
+            manager_to_worker=[],
+            probe_session_id=None,
+            message=f"Ray ports not reachable on manager {manager_ip} ({ports})",
+        )
+        store.log_event("preflight_done", **report.as_dict())
+        _persist_preflight(store, settings, report)
+        return report
 
     store.log_event("preflight_start", manager_ip=manager_ip, probe_name=probe_name)
 
@@ -140,6 +155,26 @@ def run_preflight(
     finally:
         if probe_id:
             canfar.destroy(probe_id)
+
+
+def _wait_manager_ports(ip: str, ports_csv: str, *, timeout_seconds: int) -> bool:
+    port_list = [int(p.strip()) for p in ports_csv.split(",") if p.strip()]
+    if not port_list:
+        return False
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if all(_tcp_reachable(ip, port) for port in port_list):
+            return True
+        time.sleep(2)
+    return False
+
+
+def _tcp_reachable(ip: str, port: int, timeout: float = 3.0) -> bool:
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def _persist_preflight(store: StateStore, settings: ManagerSettings, report: PreflightReport) -> None:

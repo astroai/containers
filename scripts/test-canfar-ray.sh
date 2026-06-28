@@ -81,7 +81,6 @@ bootstrap_canfar_registry_on_arc() {
     local create_out="" bootstrap_id="" status=""
 
     echo "Persisting Harbor registry credentials to /arc/home via headless bootstrap..."
-    echo "Persisting Harbor registry credentials to /arc/home via headless bootstrap..."
     create_out="$(canfar create --name "${bootstrap_name}" headless "${base_image}" \
         -e "REGISTRY_URL=${registry_url}" \
         -e "REGISTRY_USER=${CANFAR_REGISTRY__USERNAME}" \

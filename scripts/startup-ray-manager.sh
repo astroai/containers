@@ -12,6 +12,7 @@ export RAY_CLUSTER_ID="${RAY_CLUSTER_ID:-default}"
 export RAY_VERSION_EXPECTED="${RAY_VERSION_EXPECTED:-2.43.0}"
 export RAY_HEAD_PORT="${RAY_HEAD_PORT:-6379}"
 export RAY_IMAGE_TAG="${RAY_IMAGE_TAG:-${BUILD_TAG:-${TAG:-local}}}"
+export RAY_NODE_IP_ADDRESS="${RAY_NODE_IP_ADDRESS:-$(hostname -i | awk '{print $1}')}"
 
 state_dir="${HOME}/.canfar-ray/clusters/${RAY_CLUSTER_ID}"
 mkdir -p "${state_dir}"
