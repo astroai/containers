@@ -13,6 +13,8 @@ Licensed under [BSD-2-Clause](LICENSE).
 | `notebook` | JupyterLab | **Notebook** |
 | `marimo` | Reactive notebooks | Contributed |
 | `base` | Headless parent (CI, batch, not a portal session) | — |
+| `ray-manager` | Distributed Ray control UI ([canfar-ray](https://github.com/astroai/canfar-ray)) | Contributed |
+| `ray-worker-cpu` | Ray worker (launched by manager, not portal) | Headless |
 
 ## Documentation
 

@@ -19,6 +19,8 @@ Platform docs live at
 | [OPERATORS.md](OPERATORS.md) | AstroAI maintainers — build, push, register images on CANFAR |
 | [README.md](../README.md) | Repo overview and build commands |
 
+**Distributed Ray:** multi-session clusters use `images.canfar.net/astroai/ray-manager` (see [canfar-ray](https://github.com/astroai/canfar-ray) docs). AstroAI session images remain for interactive dev; workers are launched automatically by the manager.
+
 ---
 
 ## Your first session
