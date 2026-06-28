@@ -31,7 +31,7 @@ docker network create "${NETWORK}" >/dev/null
 
 echo "Starting Ray manager..."
 docker run -d --name "ray-mgr-${CLUSTER_ID}" \
-    --network "${NETWORK}" \
+    --network "${NETWORK}" --shm-size=1g \
     -u "$(id -u):$(id -g)" \
     -e HOME="${HOME}" \
     -e USER=testuser \
@@ -63,7 +63,7 @@ echo "Manager pod IP: ${HEAD_IP}"
 
 echo "Starting Ray worker (background)..."
 docker run -d --name "ray-wrk-${CLUSTER_ID}" \
-    --network "${NETWORK}" \
+    --network "${NETWORK}" --shm-size=1g \
     -u "$(id -u):$(id -g)" \
     -e HOME="${HOME}" \
     -e USER=testuser \
@@ -80,10 +80,21 @@ docker run -d --name "ray-wrk-${CLUSTER_ID}" \
     -v "${FAKE_SCRATCH}:/scratch" \
     "${WRK}" >/dev/null
 
-echo "Waiting for worker to join..."
-sleep 15
-if ! docker logs "ray-wrk-${CLUSTER_ID}" 2>&1 | grep -q "Ray runtime started"; then
-    echo "Worker logs:" >&2
+echo "Waiting for worker to join Ray..."
+deadline=$((SECONDS + 90))
+NODES=0
+while (( SECONDS < deadline )); do
+    NODES="$(docker run --rm --network "${NETWORK}" curlimages/curl:8.5.0 \
+        -fsS "http://ray-mgr-${CLUSTER_ID}:5000/api/v1/status" 2>/dev/null \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('ray_nodes_alive',0))" 2>/dev/null || echo 0)"
+    if [[ "${NODES}" -ge 2 ]]; then
+        echo "Ray nodes alive: ${NODES}"
+        break
+    fi
+    sleep 3
+done
+if [[ "${NODES:-0}" -lt 2 ]]; then
+    echo "Worker did not join Ray within timeout (nodes=${NODES:-0})." >&2
     docker logs "ray-wrk-${CLUSTER_ID}" 2>&1 | tail -30 >&2
     FAILURES=$((FAILURES + 1))
 fi

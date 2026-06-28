@@ -69,9 +69,25 @@ docker run -d --name "ray-wrk-${CLUSTER_ID}-1" \
     -v "${FAKE_ARC}:/arc" -v "${FAKE_SCRATCH}:/scratch" \
     "${WRK}" >/dev/null
 
-sleep 20
 WRK_IP="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "ray-wrk-${CLUSTER_ID}-1")"
 echo "Manager ${HEAD_IP} · worker ${WRK_IP}"
+
+echo "Waiting for worker to join Ray..."
+deadline=$((SECONDS + 90))
+while (( SECONDS < deadline )); do
+    NODES="$(docker run --rm --network "${NETWORK}" curlimages/curl:8.5.0 \
+        -fsS "http://ray-mgr-${CLUSTER_ID}:5000/api/v1/status" 2>/dev/null \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('ray_nodes_alive',0))" 2>/dev/null || echo 0)"
+    if [[ "${NODES}" -ge 2 ]]; then
+        echo "Ray nodes alive: ${NODES}"
+        break
+    fi
+    sleep 3
+done
+if [[ "${NODES:-0}" -lt 2 ]]; then
+    echo "Worker did not join Ray within timeout (nodes=${NODES:-0})." >&2
+    FAILURES=$((FAILURES + 1))
+fi
 
 python3 - "${STATE_FILE}" "${CLUSTER_ID}" "${HEAD_IP}" "${WRK_IP}" <<'PY'
 import json, sys

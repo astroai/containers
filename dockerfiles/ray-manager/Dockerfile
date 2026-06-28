@@ -7,7 +7,13 @@ ARG TAG=local
 
 FROM ${REGISTRY}/${OWNER}/ray-base:${TAG}
 
+ARG TAG=local
+
 LABEL io.canfar.skaha.session.type="contributed"
+LABEL org.opencontainers.image.version="${TAG}"
+
+ENV RAY_IMAGE_TAG=${TAG}
+ENV BUILD_TAG=${TAG}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

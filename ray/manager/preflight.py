@@ -104,14 +104,14 @@ def run_preflight(
             mgr_checks = manager_to_worker_probe(manager_ip, worker_ip, sample_ports)
 
         message = None
-        if not passed:
+        if not probe_ok:
             message = f"probe status={status} result={parsed.get('result')}"
         if probe_ok and mgr_checks and not all(c["result"] == "PASS" for c in mgr_checks):
             note = "manager->worker sample checks failed (non-fatal for preflight)"
             message = f"{message}; {note}" if message else note
 
         report = PreflightReport(
-            passed=passed,
+            passed=probe_ok,
             manager_ip=manager_ip,
             worker_ip=worker_ip,
             worker_to_manager=worker_checks,

@@ -177,6 +177,18 @@ else
 fi
 
 echo ""
+echo "Checking manager worker image tag..."
+STATUS_JSON="$(api_curl "${MANAGER_URL}/api/v1/status" || true)"
+WORKER_IMG="$(printf '%s' "${STATUS_JSON}" | python3 -c "import json,sys; print(json.load(sys.stdin).get('worker_image',''))" 2>/dev/null || true)"
+echo "  worker_image: ${WORKER_IMG}"
+if [[ -n "${WORKER_IMG}" && "${WORKER_IMG}" == *":${TAG}" ]]; then
+    echo "  ok  worker image uses tag ${TAG}"
+else
+    echo "  FAIL worker image tag (expected *:${TAG}, got ${WORKER_IMG})" >&2
+    FAILURES=$((FAILURES + 1))
+fi
+
+echo ""
 echo "Running network preflight..."
 PF_JSON="$(api_curl -X POST "${MANAGER_URL}/api/v1/preflight/run" || true)"
 echo "${PF_JSON}" | python3 -m json.tool || echo "${PF_JSON}"
