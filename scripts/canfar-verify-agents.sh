@@ -58,10 +58,31 @@ install_cmd_for() {
     esac
 }
 
-check_install() {
+install_path_candidates() {
     local tool="$1"
     local cmd
     cmd="$(install_cmd_for "${tool}")"
+    printf '%s\n' "${HOME}/.local/bin/${cmd}"
+    case "${tool}" in
+        opencode) printf '%s\n' "${HOME}/.opencode/bin/opencode" ;;
+    esac
+}
+
+install_binary_present() {
+    local tool="$1"
+    local path
+    while IFS= read -r path; do
+        if login_shell "test -x \"${path}\""; then
+            return 0
+        fi
+    done < <(install_path_candidates "${tool}")
+    local cmd
+    cmd="$(install_cmd_for "${tool}")"
+    login_shell "command -v ${cmd} >/dev/null"
+}
+
+check_install() {
+    local tool="$1"
 
     if needs_gh_auth "${tool}" && ! gh_authed; then
         skip "agent install ${tool}" "gh auth login required"
@@ -69,18 +90,14 @@ check_install() {
     fi
 
     if ! login_shell "canfar-lab --yes agent install ${tool}"; then
-        if login_shell "test -x \"\${HOME}/.local/bin/${cmd}\""; then
-            printf '  ok  agent install %s (in ~/.local/bin)\n' "${tool}"
-            return 0
-        fi
         printf '  FAIL agent install %s (install command)\n' "${tool}" >&2
         failures=$((failures + 1))
         return 0
     fi
-    if login_shell "command -v ${cmd} >/dev/null || test -x \"\${HOME}/.local/bin/${cmd}\""; then
+    if install_binary_present "${tool}"; then
         printf '  ok  agent install %s\n' "${tool}"
     else
-        printf '  FAIL agent install %s (binary %s not on PATH)\n' "${tool}" "${cmd}" >&2
+        printf '  FAIL agent install %s (binary not found after install)\n' "${tool}" >&2
         failures=$((failures + 1))
     fi
 }
