@@ -42,6 +42,12 @@ canfar config set registry.secret <harbor-cli-secret>
 
 Maintainer smoke tests load docker login credentials and persist them to `/arc/home` via a short headless bootstrap session before creating the manager (`scripts/test-canfar-ray.sh`).
 
+## Network preflight
+
+Preflight launches a **headless probe session** to verify pod-to-pod TCP on Ray ports (6379–6381). This requires CANFAR/Skaha to allow traffic between a user's contributed manager and their headless workers. If all `worker->manager` checks fail while the manager is healthy, that is usually **platform session-to-session network isolation** — see [ray-build-plan.md](ray-build-plan.md) §18.
+
+Maintainer tests can set `CANFAR_RAY_SKIP_PREFLIGHT=1` to exercise UI/auth without preflight when staging blocks cross-session TCP.
+
 ## Web UI
 
 Contributed **`ray-manager`** serves a browser UI on port **5000** (same as webterm/vscode). Forms POST to `/actions/*` and redirect back with flash messages; JSON automation uses `/api/v1/*`.
