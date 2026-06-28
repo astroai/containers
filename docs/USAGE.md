@@ -180,7 +180,7 @@ Saves lockfiles and a small manifest (~KB) to `/arc`:
 cd "${TMP_SRC_DIR}/myproject"
 pixi add numpy torch cuda-version=12
 canfar-lab save myproject
-# → ~/.astroai/saves/myproject/  (pixi.toml, pixi.lock, manifest.json)
+# → ~/.canfar/lab/saves/myproject/  (pixi.toml, pixi.lock, manifest.json)
 ```
 
 Next session, pixi rebuilds from the lockfile using cached packages:
@@ -212,7 +212,7 @@ canfar-lab workspace restore mylab
 cd "${TMP_SRC_DIR}/mylab" && pixi run python job.py
 ```
 
-Bundles live under `TMP_SRC_DIR/.astroai/workspaces/` (ephemeral unless you
+Bundles live under `TMP_SRC_DIR/.canfar-lab/workspaces/` (ephemeral unless you
 copy them to `/arc` first).
 
 **Git remains the primary backup** for code. `canfar-lab save` is for
@@ -934,7 +934,7 @@ Run `canfar-lab doctor` to see resolved values.
 When something isn't working, `canfar-lab doctor` produces a comprehensive snapshot:
 
 ```bash
-canfar-lab doctor                     # save to ~/.astroai/debug-<timestamp>.log + print
+canfar-lab doctor                     # save to ~/.canfar/lab/debug-<timestamp>.log + print
 canfar-lab doctor --stdout            # print only
 canfar-lab doctor --file /path/out    # save to custom path
 ```
@@ -952,7 +952,7 @@ canfar-lab doctor --file /path/out    # save to custom path
 | Processes | Top 10 by CPU |
 | CVMFS | `/cvmfs/soft.computecanada.ca` status |
 
-Share the log: `cat ~/.astroai/debug-<timestamp>.log`
+Share the log: `cat ~/.canfar/lab/debug-<timestamp>.log`
 
 ---
 

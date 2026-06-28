@@ -234,7 +234,7 @@ The report has 10 sections:
 
 ```bash
 # From the container shell (as the user)
-canfar-lab doctor                     # prints + saves to ~/.astroai/debug-<timestamp>.log
+canfar-lab doctor                     # prints + saves to ~/.canfar/lab/debug-<timestamp>.log
 canfar-lab doctor --stdout            # print only (no file saved)
 
 # As an operator (inspect via docker exec or kubectl exec)
@@ -244,7 +244,7 @@ kubectl exec <pod> -- canfar-lab doctor --stdout
 
 ### Operator use cases
 
-**Triage user reports:** Ask the user to run `canfar-lab doctor` and share the log (`cat ~/.astroai/debug-*.log`). The report answers the most common support questions in one file — are **`TMP_SRC_DIR`** / **`TMP_SCRATCH_DIR`** writable? Is the profile sourced? Are tools present? Is the network reachable?
+**Triage user reports:** Ask the user to run `canfar-lab doctor` and share the log (`cat ~/.canfar/lab/debug-*.log`). The report answers the most common support questions in one file — are **`TMP_SRC_DIR`** / **`TMP_SCRATCH_DIR`** writable? Is the profile sourced? Are tools present? Is the network reachable?
 
 **Fleet health:** Run `canfar-lab doctor --stdout` across all running containers to spot patterns — stale sessions with zero scratch usage, quota-pressure nodes, or CVMFS mount failures.
 
@@ -252,7 +252,7 @@ kubectl exec <pod> -- canfar-lab doctor --stdout
 
 ### Log location
 
-By default, reports save to `~/.astroai/debug-<YYYYMMDDTHHMMSSZ>.log` on `/arc` (persists across sessions). The `--file` flag saves to a custom path.
+By default, reports save to `~/.canfar/lab/debug-<YYYYMMDDTHHMMSSZ>.log` on `/arc` (persists across sessions). The `--file` flag saves to a custom path.
 
 ## AI coding tools (`canfar-lab agent install`)
 
@@ -409,7 +409,7 @@ Session ends → TMP_SRC_DIR and TMP_SCRATCH_DIR wiped
 | Was it... | Check | Recovery path |
 |-----------|-------|--------------|
 | Code | Git remote | If pushed, clone back. If not pushed, data was on `/scratch` — unrecoverable. |
-| Environment | `~/.astroai/saves/` or `/arc/projects/<group>/env-saves/` | Resume with `canfar-lab resume` |
+| Environment | `~/.canfar/lab/saves/` or `/arc/projects/<group>/env-saves/` | Resume with `canfar-lab resume` |
 | Data | `/arc/projects/<group>/` | If synced, data is safe. If still on `/scratch`, unrecoverable. |
 
 **Common failure modes operators can help with:**

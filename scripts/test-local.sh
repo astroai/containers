@@ -64,22 +64,20 @@ fi
 if [[ "${VERIFY_ONLY}" -eq 1 ]]; then
     echo "Verifying ${FULL_IMAGE} (startup + login-shell PATH)"
     echo "  HOME=${FAKE_ARC}/testuser"
-    echo "  TMP_SRC_DIR=${TMP_SRC_DIR:-?}  TMP_SCRATCH_DIR=${TMP_SCRATCH_DIR:-?}"
+    echo "  /srcdir=/srcdir  /scratch=/scratch"
     echo ""
 
     # Simulate startup: session images use common-init; headless base uses profile only.
     run_docker bash -lc '
         if [[ -f /cadc/common-init.sh ]]; then
             source /cadc/common-init.sh
-            # Legacy images exported the guard — ensure login children still work.
-            export CANFAR_LAB_PROFILE_LOADED=1
         elif [[ -f /etc/profile.d/astroai.sh ]]; then
             source /etc/profile.d/astroai.sh
         else
             echo "No session init or astroai profile found." >&2
             exit 1
         fi
-        exec bash -lic "command -v canfar cadcget cadc-tap vcp canfar-lab >/dev/null"
+        exec bash -lic "[[ -n \"\${CANFAR_LAB_BIN_DIR:-}\" && -n \"\${UV_CACHE_DIR:-}\" ]] && command -v canfar cadcget cadc-tap vcp canfar-lab >/dev/null"
     ' || FAILURES=$((FAILURES + 1))
 
     echo ""

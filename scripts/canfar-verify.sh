@@ -69,12 +69,18 @@ if [[ "${QUICK}" -eq 0 ]]; then
         check "TMP_SRC_DIR writable" login_shell 'test -w "${TMP_SRC_DIR}"'
     fi
     if login_shell '[[ -d "${TMP_SCRATCH_DIR}" && -w "${TMP_SCRATCH_DIR}" ]]'; then
-        for var in UV_CACHE_DIR PIP_CACHE_DIR NPM_CONFIG_CACHE PIXI_CACHE_DIR MAMBA_PKGS_DIRS CONDA_PKGS_DIRS; do
-            check "${var} under TMP_SCRATCH_DIR" login_shell "[[ \"\${${var}}\" == \"\${TMP_SCRATCH_DIR}\"/* ]]"
+        check "session cache root layout" login_shell \
+            'root="${TMP_SCRATCH_DIR}/.cache-${USER}"; [[ "${UV_CACHE_DIR}" == "${root}/"* ]]'
+        for var in PIP_CACHE_DIR NPM_CONFIG_CACHE PIXI_CACHE_DIR MAMBA_PKGS_DIRS CONDA_PKGS_DIRS; do
+            check "${var} under session cache root" login_shell \
+                "root=\"\${TMP_SCRATCH_DIR}/.cache-\${USER}\"; [[ \"\${${var}}\" == \"\${root}\"/* ]]"
         done
         check "CANFAR_LAB_BIN_DIR on scratch" login_shell '[[ "${CANFAR_LAB_BIN_DIR}" == "${TMP_SCRATCH_DIR}"/* ]]'
+        check "CANFAR_LAB_RUNTIME_ROOT on scratch" login_shell \
+            '[[ "${CANFAR_LAB_RUNTIME_ROOT}" == "${TMP_SCRATCH_DIR}"/* ]]'
         check "UV_PYTHON_INSTALL_DIR off home" login_shell '[[ "${UV_PYTHON_INSTALL_DIR}" != "${HOME}"/* ]]'
         check "PIXI_HOME off home when scratch mounted" login_shell '[[ "${PIXI_HOME}" != "${HOME}/.pixi" ]]'
+        check "canfar-lab env export" login_shell 'canfar-lab env export --no-ensure | grep -q CANFAR_LAB_BIN_DIR'
     elif login_shell '[[ -n "${TMP_SRC_DIR:-}" ]]'; then
         for var in UV_CACHE_DIR PIP_CACHE_DIR NPM_CONFIG_CACHE PIXI_CACHE_DIR MAMBA_PKGS_DIRS CONDA_PKGS_DIRS; do
             check "${var} under TMP_SRC_DIR" login_shell "[[ \"\${${var}}\" == \"\${TMP_SRC_DIR}\"/* ]]"

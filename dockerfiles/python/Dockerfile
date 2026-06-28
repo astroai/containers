@@ -30,13 +30,13 @@ ENV UV_PYTHON_INSTALL_DIR=/usr/local/share/uv/python \
     PIXI_BIN_DIR=/usr/local/bin \
     PIXI_CACHE_DIR=/usr/local/share/pixi/cache
 # ^ build-time paths for `uv pip install --system` only.
-# Session users: /etc/profile.d/astroai.sh overrides UV_* / PIXI_HOME / MAMBA_* to ~/.local;
-# package caches (uv, pip, pixi, npm, conda/mamba pkgs) go to /scratch when mounted.
+# Session users: /etc/canfar-lab/profile.sh via canfar-lab env export overrides
+# runtime and cache dirs to scratch when /scratch is mounted.
 
 ENV MAMBA_ROOT_PREFIX=/usr/local/share/micromamba \
     MAMBA_PKGS_DIRS=/usr/local/share/micromamba/pkgs
-# ^ build-time paths only. Session users: astroai.sh sets MAMBA_ROOT_PREFIX under
-# ~/.local/share and MAMBA_PKGS_DIRS on /scratch when mounted.
+# ^ build-time paths only. Session users: canfar-lab env export sets MAMBA_ROOT_PREFIX
+# and MAMBA_PKGS_DIRS under scratch when /scratch is mounted.
 
 RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh \
     | env UV_VERSION="${UV_VERSION}" UV_UNMANAGED_INSTALL=/usr/local/bin sh \

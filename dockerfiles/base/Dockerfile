@@ -113,7 +113,11 @@ RUN uv venv /opt/astroai/venv/cadc \
     && bash /tmp/patch-clint-py313.sh /opt/astroai/venv/cadc \
     && rm /tmp/patch-clint-py313.sh /tmp/canfar_lab-0.1.0-py3-none-any.whl \
     && chmod -R a+rX /opt/astroai/venv/cadc \
-    && /opt/astroai/venv/cadc/bin/canfar-lab env install-shell /etc/canfar-lab
+    && /opt/astroai/venv/cadc/bin/canfar-lab env install-shell /etc/canfar-lab \
+    && test -f /etc/canfar-lab/profile.sh \
+    && test -f /etc/canfar-lab/hooks.sh \
+    && HOME=/tmp CANFAR_LAB_DEFAULT_SRC_DIR=/srcdir CANFAR_LAB_DEFAULT_SCRATCH_DIR=/scratch \
+       /opt/astroai/venv/cadc/bin/canfar-lab env export --no-ensure >/dev/null
 
 COPY scripts/lib/astroai-env-common.sh scripts/lib/astroai-ui.sh scripts/lib/astroai-load.sh scripts/lib/skaha-proxy.sh /opt/astroai/lib/
 COPY scripts/canfar-verify.sh scripts/canfar-verify-agents.sh /opt/astroai/bin/
