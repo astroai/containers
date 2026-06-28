@@ -21,15 +21,15 @@ From an AstroAI session or any machine with Git and [GitHub CLI](https://cli.git
 
 ```bash
 gh auth login
-gh repo clone astroai/astroai-containers
-cd astroai-containers
+gh repo clone astroai/containers
+cd containers
 ```
 
 Fork first if you don't have write access:
 
 ```bash
-gh repo fork astroai/astroai-containers --clone
-cd astroai-containers
+gh repo fork astroai/containers --clone
+cd containers
 git checkout -b my-change
 ```
 
@@ -76,7 +76,7 @@ After changing `base` or `scripts/astroai-profile.sh`, verify uv paths:
 ./scripts/test-local.sh webterm 5000
 # in the container:
 source /etc/profile.d/astroai.sh
-astroai-debug                   # paths, caches, uv python dir under $HOME
+canfar-lab doctor                   # paths, caches, uv python dir under $HOME
 uv run python -c "print('ok')"
 ```
 
@@ -98,7 +98,7 @@ Keep PRs focused: one logical change (e.g. "fix uv paths" or "document Codex ins
 ## Review checklist (for authors)
 
 - [ ] `docs/USAGE.md` updated if user-visible behavior changed
-- [ ] `scripts/astroai-help.sh` updated if commands or paths changed
+- [ ] canfar-lab CLI/docs updated if session commands or paths changed
 - [ ] `dockerfiles/base/Dockerfile` `COPY docs/USAGE.md` path matches renamed doc
 - [ ] Tested with `./scripts/test-local.sh` when scripts or Dockerfiles changed
 - [ ] No unnecessary expansion of the apt layer — prefer pixi/uv in USAGE.md
@@ -109,4 +109,4 @@ Image push and Science Portal registration are documented in [OPERATORS.md](OPER
 
 ## Questions
 
-Open a [GitHub issue](https://github.com/astroai/astroai-containers/issues) or discuss on an existing PR with `gh pr comment`.
+Open a [GitHub issue](https://github.com/astroai/containers/issues) or discuss on an existing PR with `gh pr comment`.

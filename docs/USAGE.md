@@ -55,8 +55,8 @@ Follow the prompts — browser auth or paste a token. Done.
 ### 3. Start a project
 
 ```bash
-astroai-status                    # quotas, home/project space, processes
-astroai-new mylab                 # creates a pixi project in the work directory
+canfar-lab status                    # quotas, home/project space, processes
+canfar-lab init mylab                 # creates a pixi project in the work directory
 cd mylab
 pixi add numpy astropy
 pixi run python -c "import astropy; print(astropy.__version__)"
@@ -65,12 +65,12 @@ pixi run python -c "import astropy; print(astropy.__version__)"
 Or clone an existing repo:
 
 ```bash
-astroai-clone you/project         # clones + installs deps automatically
+canfar-lab clone you/project         # clones + installs deps automatically
 cd project
 pixi run python analysis.py
 
 # reuse your saved ML stack (AstroAI-only bootstrap — see below)
-astroai-clone --from-env ml-base you/other-project
+canfar-lab clone --from-env ml-base you/other-project
 ```
 
 ### 4. Save your work before closing
@@ -83,19 +83,19 @@ filing cabinets.
 ```bash
 git add -A && git commit -m "session work"
 git push                          # code → GitHub
-astroai-env-save mylab            # lockfile manifest → /arc (tiny, ~KB)
+canfar-lab save mylab            # lockfile manifest → /arc (tiny, ~KB)
 ```
 
 Or do both at once:
 
 ```bash
-astroai-session-archive           # git push + env save in one command
+canfar-lab push           # git push + env save in one command
 ```
 
 ### 5. Resume next time
 
 ```bash
-astroai-env-resume mylab          # restores lockfiles, rebuilds env
+canfar-lab resume mylab          # restores lockfiles, rebuilds env
 cd mylab
 pixi run python analysis.py
 ```
@@ -103,7 +103,7 @@ pixi run python analysis.py
 That's it — you're up and running. The rest of this guide covers storage details,
 GPU workflows, team workspaces, and everything else.
 
-**Handy commands:** `astroai-help` · `astroai-status` · `astroai-home-usage` · `less /opt/astroai/USAGE.md`
+**Handy commands:** `canfar-lab guide` · `canfar-lab status` · `canfar-lab status` · `less /opt/astroai/USAGE.md`
 
 ---
 
@@ -125,7 +125,7 @@ wiped when the session ends). AstroAI keeps code and data separate:
 | `/cvmfs/` | DRAC / Alliance software (read-only) | Persistent on nodes; lazy-mounted |
 
 On Contributed session startup, `common-init` **`cd`s to `TMP_SRC_DIR`**.
-Run `astroai-debug` to see resolved paths (`TMP_SRC_DIR`, `TMP_SCRATCH_DIR`, caches).
+Run `canfar-lab doctor` to see resolved paths (`TMP_SRC_DIR`, `TMP_SCRATCH_DIR`, caches).
 
 ### The golden rule
 
@@ -149,10 +149,10 @@ Legacy alias: `ASTROAI_WORK_ROOT` still works when `TMP_SRC_DIR` is unset.
 | Location | Keep here | Avoid |
 |----------|----------|-------|
 | **`TMP_SRC_DIR`** (`/srcdir`) | Repos, active `.pixi`/`.venv` envs | Assuming it persists — always `git push` |
-| **`TMP_SCRATCH_DIR`** (`/scratch`) | Staged datasets, training outputs, download caches | Assuming it persists — `astroai-data-sync` |
+| **`TMP_SCRATCH_DIR`** (`/scratch`) | Staged datasets, training outputs, download caches | Assuming it persists — `canfar-lab data sync` |
 | `~/.astroai/saves/` | Lockfile manifests (small) | `--full` packs unless necessary |
-| `~/.cache/huggingface` | OK — `astroai-home-clean --hf` | Large model re-downloads |
-| `~/.cache/torch`, matplotlib, other ML | `astroai-home-clean --ml` | Unbounded caches |
+| `~/.cache/huggingface` | OK — `canfar-lab clean home --hf` | Large model re-downloads |
+| `~/.cache/torch`, matplotlib, other ML | `canfar-lab clean home --ml` | Unbounded caches |
 | `~/.local/bin` | AI tools, small user binaries | Large vendored SDKs |
 | `/arc/projects/<group>/` | Shared datasets, team env-saves | Personal scratch copies |
 
@@ -177,14 +177,14 @@ Saves lockfiles and a small manifest (~KB) to `/arc`:
 ```bash
 cd "${TMP_SRC_DIR}/myproject"
 pixi add numpy torch cuda-version=12
-astroai-env-save myproject
+canfar-lab save myproject
 # → ~/.astroai/saves/myproject/  (pixi.toml, pixi.lock, manifest.json)
 ```
 
 Next session, pixi rebuilds from the lockfile using cached packages:
 
 ```bash
-astroai-env-resume myproject
+canfar-lab resume myproject
 cd "${TMP_SRC_DIR}/myproject"
 pixi run python train.py
 ```
@@ -194,8 +194,8 @@ pixi run python train.py
 Packs the entire `.pixi` or `.venv` directory with zstd compression:
 
 ```bash
-astroai-env-save myproject --full
-astroai-env-save myproject --full --to /arc/projects/mygroup/env-saves/myproject
+canfar-lab save myproject --full
+canfar-lab save myproject --full --to /arc/projects/mygroup/env-saves/myproject
 ```
 
 ### Offline batch (workspace freeze)
@@ -204,16 +204,16 @@ For headless jobs with no network, freeze a full project tree:
 
 ```bash
 cd "${TMP_SRC_DIR}/mylab"
-astroai-workspace-save mylab --with-cache
+canfar-lab workspace save mylab --with-cache
 # next session or batch job:
-astroai-workspace-restore mylab
+canfar-lab workspace restore mylab
 cd "${TMP_SRC_DIR}/mylab" && pixi run python job.py
 ```
 
 Bundles live under `TMP_SRC_DIR/.astroai/workspaces/` (ephemeral unless you
 copy them to `/arc` first).
 
-**Git remains the primary backup** for code. `astroai-env-save` is for
+**Git remains the primary backup** for code. `canfar-lab save` is for
 environment reproducibility.
 
 ### Shared dependency stacks (AstroAI bootstrap)
@@ -223,16 +223,16 @@ template once and reuse it when cloning:
 
 ```bash
 # one-time: create and save your standard stack
-astroai-new ml-base
+canfar-lab init ml-base
 cd "${TMP_SRC_DIR}/ml-base"
 pixi add python=3.12 numpy torch cuda-version=12
-astroai-env-save ml-base
+canfar-lab save ml-base
 # optional team copy:
-astroai-env-save ml-base --to /arc/projects/mygroup/env-saves/ml-base
+canfar-lab save ml-base --to /arc/projects/mygroup/env-saves/ml-base
 
 # later: clone with warm caches (+ lock bootstrap if repo has no lockfile)
-astroai-clone --from-env ml-base you/project-a
-astroai-clone --from-env ml-base --from /arc/projects/mygroup/env-saves/ml-base you/project-b
+canfar-lab clone --from-env ml-base you/project-a
+canfar-lab clone --from-env ml-base --from /arc/projects/mygroup/env-saves/ml-base you/project-b
 ```
 
 What `--from-env` does (session-local only):
@@ -270,14 +270,14 @@ Great for team datasets, shared environment manifests, and collaborative results
 ### Create one
 
 ```bash
-astroai-project-init mygroup --members alice,bob
+canfar-lab project init mygroup --members alice,bob
 ```
 
 Creates `/arc/projects/mygroup/` with `data/`, `results/`, and `env-saves/`
 subdirectories, and sets read/write ACLs. Add more members later:
 
 ```bash
-astroai-project-init mygroup --members carol
+canfar-lab project init mygroup --members carol
 ```
 
 ### Moving data around
@@ -285,49 +285,49 @@ astroai-project-init mygroup --members carol
 **Stage data from persistent storage to scratch for fast I/O:**
 
 ```bash
-astroai-data-stage /arc/projects/mygroup/data/catalog.fits
+canfar-lab data stage /arc/projects/mygroup/data/catalog.fits
 # → ${TMP_SCRATCH_DIR}/catalog.fits
 
-astroai-data-stage /arc/projects/mygroup/survey/  "${TMP_SCRATCH_DIR}/survey/"
+canfar-lab data stage /arc/projects/mygroup/survey/  "${TMP_SCRATCH_DIR}/survey/"
 ```
 
 **Sync results back to persistent storage:**
 
 ```bash
-astroai-data-sync "${TMP_SCRATCH_DIR}/results/"  /arc/projects/mygroup/results/
+canfar-lab data sync "${TMP_SCRATCH_DIR}/results/"  /arc/projects/mygroup/results/
 ```
 
-Both use `rsync -avh --progress`. `astroai-data-stage` asks before overwriting;
-`astroai-data-sync` warns if the source isn't under `TMP_SCRATCH_DIR`.
+Both use `rsync -avh --progress`. `canfar-lab data stage` asks before overwriting;
+`canfar-lab data sync` warns if the source isn't under `TMP_SCRATCH_DIR`.
 
 ### Share environment saves with your team
 
 ```bash
 cd "${TMP_SRC_DIR}/myproject"
-astroai-env-save myproject --to /arc/projects/mygroup/env-saves/myproject
+canfar-lab save myproject --to /arc/projects/mygroup/env-saves/myproject
 ```
 
 Teammates can discover and use them:
 
 ```bash
-astroai-env-list --team
-astroai-env-resume myproject --from /arc/projects/mygroup/env-saves/myproject
+canfar-lab saves --team
+canfar-lab resume myproject --from /arc/projects/mygroup/env-saves/myproject
 ```
 
 ### A typical team session
 
 ```bash
 # Start
-astroai-env-resume myproject --from /arc/projects/mygroup/env-saves/myproject
-astroai-data-stage /arc/projects/mygroup/data/catalog.fits
+canfar-lab resume myproject --from /arc/projects/mygroup/env-saves/myproject
+canfar-lab data stage /arc/projects/mygroup/data/catalog.fits
 
 # Work
 cd "${TMP_SRC_DIR}/myproject"
 pixi run python analysis.py
 
 # Share and close
-astroai-data-sync "${TMP_SCRATCH_DIR}/results/"  /arc/projects/mygroup/results/
-astroai-session-archive
+canfar-lab data sync "${TMP_SCRATCH_DIR}/results/"  /arc/projects/mygroup/results/
+canfar-lab push
 ```
 
 ---
@@ -416,7 +416,7 @@ current shell unless you add them to `~/.bashrc` on `/arc`.
 
 ```bash
 gh auth login                     # once
-astroai-clone you/project         # clones + installs deps
+canfar-lab clone you/project         # clones + installs deps
 cd project
 pixi run python analysis.py
 ```
@@ -432,7 +432,7 @@ pixi install                      # or: uv sync
 ### Creating a new project
 
 ```bash
-astroai-new mylab                 # pixi project in TMP_SRC_DIR
+canfar-lab init mylab                 # pixi project in TMP_SRC_DIR
 cd mylab
 pixi add numpy astropy matplotlib
 pixi run python analysis.py
@@ -442,14 +442,14 @@ git init && git add -A && git commit -m "start"
 gh repo create mylab --private --source=. --push
 ```
 
-`astroai-new` also supports `--uv`, `--no-git`, `--no-gh`, and `--astro`.
+`canfar-lab init` also supports `--uv`, `--no-git`, `--no-gh`, and `--astro`.
 
 ### Closing a session
 
 ```bash
-astroai-session-archive           # git push + env save + summary
-astroai-session-archive --name my-experiment
-astroai-session-archive --force   # non-interactive (used by the exit hook)
+canfar-lab push           # git push + env save + summary
+canfar-lab push --name my-experiment
+canfar-lab push --yes   # non-interactive (used by the exit hook)
 ```
 
 ### GPU workflow
@@ -486,32 +486,32 @@ gh run list --limit 5             # recent CI runs
 
 | Command | What it does |
 |---------|-------------|
-| `astroai-help` | Full command list (this doc is the long form) |
-| `astroai-status` | Quotas, home/project space, top processes |
-| `astroai-new [name]` | New project under `TMP_SRC_DIR` (`--uv`, `--no-git`, `--no-gh`, `--astro`) |
-| `astroai-clone <owner/repo> [dir]` | Clone + install deps (`--from-env`, `--from`) |
-| `astroai-env-save [name]` | Save lockfiles + manifest (~KB) (`--full`, `--to`) |
-| `astroai-env-resume <name>` | Restore + rebuild env (`--from`, `[path]`) |
-| `astroai-env-list` | List saves (`--team`, `--all`) |
-| `astroai-workspace-save [name]` | Freeze full project tree for offline batch (`--with-cache`, `--to`) |
-| `astroai-workspace-restore <name>` | Restore frozen workspace — no network (`--from`, `--to`) |
-| `astroai-kernel-register` | Register project as Jupyter kernel (`--list`, `--unregister`, `--name`) |
-| `astroai-session-archive` | Git push + env save before closing (`--name`, `--force`) |
-| `astroai-project-init <name>` | Team workspace on `/arc/projects` (`--members`) |
-| `astroai-data-stage <src> [dst]` | Copy persistent → scratch |
-| `astroai-data-sync <src> <dst>` | Copy scratch → persistent |
-| `astroai-home-usage` | Disk breakdown under `$HOME` |
-| `astroai-home-clean` | Clear re-downloadable junk on `/arc` (`--all-safe`, `--stale-pkg`, `--ml`, `--hf`, `--dry-run`) |
-| `astroai-cache-prune` | Clear scratch download caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--conda`, `--hf`) |
-| `astroai-install <tool>` | Install AI tools to `~/.local/bin` (`--list`) |
-| `astroai-debug` | Diagnostic report (`--stdout`, `--file`) |
+| `canfar-lab guide` | Full command list (this doc is the long form) |
+| `canfar-lab status` | Quotas, home/project space, top processes |
+| `canfar-lab init [name]` | New project under `TMP_SRC_DIR` (`--uv`, `--no-git`, `--no-gh`, `--astro`) |
+| `canfar-lab clone <owner/repo> [dir]` | Clone + install deps (`--from-env`, `--from`) |
+| `canfar-lab save [name]` | Save lockfiles + manifest (~KB) (`--full`, `--to`) |
+| `canfar-lab resume <name>` | Restore + rebuild env (`--from`, `[path]`) |
+| `canfar-lab saves` | List saves (`--team`, `--all`) |
+| `canfar-lab workspace save [name]` | Freeze full project tree for offline batch (`--with-cache`, `--to`) |
+| `canfar-lab workspace restore <name>` | Restore frozen workspace — no network (`--from`, `--to`) |
+| `canfar-lab kernel register` | Register project as Jupyter kernel (`--list`, `--unregister`, `--name`) |
+| `canfar-lab push` | Git push + env save before closing (`--name`, `--force`) |
+| `canfar-lab project init <name>` | Team workspace on `/arc/projects` (`--members`) |
+| `canfar-lab data stage <src> [dst]` | Copy persistent → scratch |
+| `canfar-lab data sync <src> <dst>` | Copy scratch → persistent |
+| `canfar-lab status` | Disk breakdown under `$HOME` |
+| `canfar-lab clean home` | Clear re-downloadable junk on `/arc` (`--all-safe`, `--stale-pkg`, `--ml`, `--hf`, `--dry-run`) |
+| `canfar-lab clean cache` | Clear scratch download caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--conda`, `--hf`) |
+| `canfar-lab agent install <tool>` | Install AI tools to `~/.local/bin` (`--list`) |
+| `canfar-lab doctor` | Diagnostic report (`--stdout`, `--file`) |
 
 Most `astroai-*` commands support `-h` (short summary on stderr, exit 1) and
-`--help` (detailed help on stdout, exit 0). `astroai-help` prints this index.
+`--help` (detailed help on stdout, exit 0). `canfar-lab guide` prints this index.
 
 ```bash
-astroai-cache-prune --help
-astroai-env-save -h
+canfar-lab clean cache --help
+canfar-lab save -h
 ```
 
 ---
@@ -525,7 +525,7 @@ Heavy ML stacks and project-specific deps belong in **your** pixi/uv project.
 |------|-------------------|
 | `git`, `git-lfs`, `openssh-client`, `gh`, `delta` | Clone, push, PRs/issues, readable diffs |
 | `rg`, `fd`, `bat`, `tree`, `fzf`, `ctags`, `hyperfine` | Fast search, find, browse, benchmark, jump to definitions |
-| `sg` (ast-grep) | Syntax-aware search — `astroai-install ast-grep` if missing |
+| `sg` (ast-grep) | Syntax-aware search — `canfar-lab agent install ast-grep` if missing |
 | `file`, `xxd`, `hexdump` | Inspect file types and binary contents |
 | `patch`, `make`, `shellcheck` | Apply diffs, run Makefiles, lint shell scripts |
 | `gcc`, `g++`, `gfortran`, `ld`, `ar` | GNU C/C++/Fortran + linkers (default for science builds) |
@@ -600,7 +600,7 @@ The image has **no system `node` or `npm`** — JupyterLab runs without Node
 - **npm-based AI agents** (Pi, CodeWhale, Freebuff, Codex, OpenCode)
 - **JupyterLab source extensions** from npm (rare — prefer pip extensions)
 
-**Recommended: `astroai-install node`** — installs Node.js persistently to
+**Recommended: `canfar-lab agent install node`** — installs Node.js persistently to
 `~/.local/bin` on `/arc`. Alternatively: pixi project under **`TMP_SRC_DIR`**
 or `module load nodejs` from CVMFS.
 
@@ -628,14 +628,14 @@ Run them with `pixi run codex`, `pixi run pi`, etc., or add aliases to
 
 ```bash
 cd "${TMP_SRC_DIR}/node-tools"
-astroai-env-save node-tools
+canfar-lab save node-tools
 # next session:
-astroai-env-resume node-tools
+canfar-lab resume node-tools
 cd "${TMP_SRC_DIR}/node-tools" && pixi install
 ```
 
 npm globals inside the pixi env rebuild with `pixi install`. For long-lived
-CLIs, prefer `astroai-install node`.
+CLIs, prefer `canfar-lab agent install node`.
 
 #### CVMFS alternative
 
@@ -657,11 +657,11 @@ Node.js — those change too fast to bundle.
 ### One-command install
 
 ```bash
-astroai-install agent             # Cursor Agent
-astroai-install claude            # Claude Code
-astroai-install agy               # Google Antigravity CLI
-astroai-install node              # Node.js + npm (needed for some agents)
-astroai-install --list            # see everything available
+canfar-lab agent install agent             # Cursor Agent
+canfar-lab agent install claude            # Claude Code
+canfar-lab agent install agy               # Google Antigravity CLI
+canfar-lab agent install node              # Node.js + npm (needed for some agents)
+canfar-lab agent install --list            # see everything available
 ```
 
 Binaries land in `~/.local/bin` on `/arc` — they persist across sessions.
@@ -672,20 +672,20 @@ One setup for **all users** — config persists on `/arc` across sessions.
 
 ```bash
 gh auth login
-astroai-agent-setup              # once: MCP + rules + GitHub skills
-astroai-install agent            # pick your CLI: agent, claude, goose, opencode, codex, …
+canfar-lab agent setup              # once: MCP + rules + GitHub skills
+canfar-lab agent install agent            # pick your CLI: agent, claude, goose, opencode, codex, …
 ```
 
 **After an image upgrade** (operators ship new skills/MCP defaults):
 
 ```bash
-astroai-agent-setup update
+canfar-lab agent setup update
 ```
 
 **Inside a git repo** (optional, commit to share with teammates):
 
 ```bash
-astroai-agent-setup project
+canfar-lab agent setup project
 ```
 
 What you get:
@@ -708,7 +708,7 @@ rg 'pattern' --type py
 
 Check install: `cat ~/.astroai/agent-setup-stamp`
 
-Advanced: `astroai-agent-setup --list` for per-agent bundles; `astroai-agent-setup --help`
+Advanced: `canfar-lab agent setup --list` for per-agent bundles; `canfar-lab agent setup --help`
 
 ### What's available
 
@@ -732,16 +732,16 @@ Advanced: `astroai-agent-setup --list` for per-agent bundles; `astroai-agent-set
 
 | You want… | Start with |
 |-----------|------------|
-| Cursor subscription / IDE workflow | **Cursor Agent** — `astroai-install agent` |
-| Deep reasoning, long refactors | **Claude Code** — `astroai-install claude` |
-| Google account; Gemini successor | **Antigravity CLI** — `astroai-install agy` |
-| GitHub-native, issue → PR | **GitHub Copilot CLI** — `astroai-install copilot` |
-| OpenAI ChatGPT / Codex | **Codex CLI** — `astroai-install codex` |
-| Model-agnostic, 75+ providers | **OpenCode** — `astroai-install opencode` |
-| MCP + recipes, Block/Linux Foundation | **Goose** — `astroai-install goose` |
+| Cursor subscription / IDE workflow | **Cursor Agent** — `canfar-lab agent install agent` |
+| Deep reasoning, long refactors | **Claude Code** — `canfar-lab agent install claude` |
+| Google account; Gemini successor | **Antigravity CLI** — `canfar-lab agent install agy` |
+| GitHub-native, issue → PR | **GitHub Copilot CLI** — `canfar-lab agent install copilot` |
+| OpenAI ChatGPT / Codex | **Codex CLI** — `canfar-lab agent install codex` |
+| Model-agnostic, 75+ providers | **OpenCode** — `canfar-lab agent install opencode` |
+| MCP + recipes, Block/Linux Foundation | **Goose** — `canfar-lab agent install goose` |
 | Minimal harness, BYOK | **Pi** — needs Node |
 | Open models / DeepSeek-first TUI | **CodeWhale** — needs Node |
-| Local models (LM Studio, Ollama) | **Swival** — `astroai-install swival` |
+| Local models (LM Studio, Ollama) | **Swival** — `canfar-lab agent install swival` |
 | Budget npm agent | **Freebuff** — needs Node |
 
 You can install several agents — they share `gh`, `rg`, and repos but use
@@ -750,7 +750,7 @@ separate auth. Each CLI needs its own account or API key.
 ### Swival with local models
 
 ```bash
-astroai-install swival
+canfar-lab agent install swival
 
 swival "Summarize the README"                    # LM Studio on localhost
 swival --provider openrouter --model z-ai/glm-5 "Refactor error handling"
@@ -804,11 +804,11 @@ If scratch isn't mounted, caches fall back under `TMP_SRC_DIR/.cache-$USER/`.
 When `/arc` quota feels tight:
 
 ```bash
-astroai-home-usage                  # see what's using space
-astroai-home-clean --dry-run --all-safe   # preview /arc cleanup
-astroai-home-clean --all-safe       # stale pkg caches, ML, logs on /arc
-astroai-home-clean --hf              # also drop Hugging Face models (expensive)
-astroai-cache-prune --all-safe        # scratch: pip/uv/npm/pixi/conda caches
+canfar-lab status                  # see what's using space
+canfar-lab clean home --dry-run --all-safe   # preview /arc cleanup
+canfar-lab clean home --all-safe       # stale pkg caches, ML, logs on /arc
+canfar-lab clean home --hf              # also drop Hugging Face models (expensive)
+canfar-lab clean cache --all-safe        # scratch: pip/uv/npm/pixi/conda caches
 ```
 
 ---
@@ -869,21 +869,21 @@ creating or resuming a project, register it:
 
 ```bash
 cd "${TMP_SRC_DIR}/myproject"
-astroai-kernel-register
+canfar-lab kernel register
 ```
 
 Then pick **Python (myproject · pixi)** in the kernel menu.
 
 | Command | What it does |
 |---------|-------------|
-| `astroai-kernel-register` | Register cwd project (adds `ipykernel` if missing) |
-| `astroai-kernel-register "${TMP_SRC_DIR}/other"` | Register a specific path |
-| `astroai-kernel-register --name mylab` | Override kernel display name |
-| `astroai-kernel-register --list` | List registered kernels |
-| `astroai-kernel-register --unregister` | Remove kernel for this project |
+| `canfar-lab kernel register` | Register cwd project (adds `ipykernel` if missing) |
+| `canfar-lab kernel register "${TMP_SRC_DIR}/other"` | Register a specific path |
+| `canfar-lab kernel register --name mylab` | Override kernel display name |
+| `canfar-lab kernel register --list` | List registered kernels |
+| `canfar-lab kernel register --unregister` | Remove kernel for this project |
 
 Kernelspecs persist on `/arc`. The env binaries live on `TMP_SRC_DIR` —
-**re-run `astroai-kernel-register` after each `astroai-env-resume`**.
+**re-run `canfar-lab kernel register` after each `canfar-lab resume`**.
 
 ### marimo
 
@@ -912,18 +912,18 @@ AstroAI profile (`/etc/profile.d/astroai.sh`) sets unless overridden:
 | `TMP_SCRATCH_DIR` | `/scratch` | Datasets, download caches, `TMPDIR` parent |
 | `ASTROAI_WORK_ROOT` | — | Legacy alias for code root (deprecated) |
 
-Run `astroai-debug` to see resolved values.
+Run `canfar-lab doctor` to see resolved values.
 
 ---
 
 ## Diagnostics
 
-When something isn't working, `astroai-debug` produces a comprehensive snapshot:
+When something isn't working, `canfar-lab doctor` produces a comprehensive snapshot:
 
 ```bash
-astroai-debug                     # save to ~/.astroai/debug-<timestamp>.log + print
-astroai-debug --stdout            # print only
-astroai-debug --file /path/out    # save to custom path
+canfar-lab doctor                     # save to ~/.astroai/debug-<timestamp>.log + print
+canfar-lab doctor --stdout            # print only
+canfar-lab doctor --file /path/out    # save to custom path
 ```
 
 | Section | What it shows |
@@ -951,17 +951,17 @@ Share the log: `cat ~/.astroai/debug-<timestamp>.log`
 | `git clone` SSH fails | Add your key to `~/.ssh` on `/arc`, or use `gh auth login` for HTTPS. |
 | GPU not visible | Did you pick a GPU node at launch? Run `nvidia-smi`. |
 | `import torch` — no CUDA | Need GPU node **and** `cuda-version` in your pixi/uv project. |
-| AI CLI not found | `astroai-install <tool>` or `astroai-install --list`. npm agents need `astroai-install node` first. |
-| `node` / `npm` not found | Not in the image — `astroai-install node` or `pixi add nodejs`. See [Node.js and npm](#nodejs-and-npm). |
-| `gh: not authenticated` | `gh auth login` — token persists on `/arc`. Required for `astroai-install codex`. |
-| Wrong npm package | Codex: `@openai/codex` · OpenCode: `opencode-ai` · Pi: `@earendil-works/pi-coding-agent` · Claude/Cursor: prefer curl via `astroai-install`. |
+| AI CLI not found | `canfar-lab agent install <tool>` or `canfar-lab agent install --list`. npm agents need `canfar-lab agent install node` first. |
+| `node` / `npm` not found | Not in the image — `canfar-lab agent install node` or `pixi add nodejs`. See [Node.js and npm](#nodejs-and-npm). |
+| `gh: not authenticated` | `gh auth login` — token persists on `/arc`. Required for `canfar-lab agent install codex`. |
+| Wrong npm package | Codex: `@openai/codex` · OpenCode: `opencode-ai` · Pi: `@earendil-works/pi-coding-agent` · Claude/Cursor: prefer curl via `canfar-lab agent install`. |
 | pip build fails | Add compilers/libs with pixi, not system apt. |
-| `uv` permission denied on `/usr/local` | `source /etc/profile.d/astroai.sh` (or `bash -l`) must run first — it redirects uv paths to `~/.local`. Check with `astroai-debug`. |
+| `uv` permission denied on `/usr/local` | `source /etc/profile.d/astroai.sh` (or `bash -l`) must run first — it redirects uv paths to `~/.local`. Check with `canfar-lab doctor`. |
 | `canfar` / `cadcget` not found | Open a login shell (`bash -l`) or new tmux window. Run `/opt/astroai/bin/canfar-verify.sh`. |
-| `/arc` quota pressure | `astroai-home-usage` then `astroai-home-clean --all-safe`. |
+| `/arc` quota pressure | `canfar-lab status` then `canfar-lab clean home --all-safe`. |
 | `ls /cvmfs` looks empty | Normal — CVMFS mounts lazily. `source /cvmfs/soft.computecanada.ca/config/profile/bash.sh` then `module avail`. |
 | Jupyter 404 behind proxy | Notebook sessions use port **8888** and path `/session/notebook/<id>/`. See [OPERATORS.md](OPERATORS.md). |
 | Jupyter opens at `/` not project dir | Stock platform launcher — `cd "${TMP_SRC_DIR}"` manually or ask ops for the AstroAI startup override. |
-| Kernel missing after resume | Re-run `astroai-kernel-register` in the project dir (`TMP_SRC_DIR` paths change between sessions). |
+| Kernel missing after resume | Re-run `canfar-lab kernel register` in the project dir (`TMP_SRC_DIR` paths change between sessions). |
 | Contributed session 404 | Skaha strips `/session/contrib/<id>` before forwarding; webterm must not use `--base-path`. Update to latest image tag. |
 | tmux shell is nologin | Image sets `default-shell /bin/bash`; try `bash -l` in webterm. |

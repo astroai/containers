@@ -21,7 +21,7 @@ astroai_ensure_save_root() {
     mkdir -p "${root}"
 }
 
-# Resolve an astroai-env-save directory (--from overrides default save root).
+# Resolve a canfar-lab save directory (--from overrides default save root).
 astroai_env_save_resolve() {
     local name="$1"
     local from_override="${2:-}"
@@ -35,7 +35,7 @@ astroai_env_save_resolve() {
 
     if [[ ! -f "${dir}/manifest.json" ]]; then
         astroai_err "Save not found: ${dir}"
-        astroai_cmd "List saves: astroai-env-list"
+        astroai_cmd "List saves: canfar-lab saves"
         exit 1
     fi
     echo "${dir}"
@@ -234,10 +234,10 @@ astroai_check_quota() {
         astroai_warn "  ⚠  ${label}: ${used_pct}% used — CRITICAL (near quota limit)"
         return 2
     elif [[ "${used_pct}" -ge 90 ]]; then
-        astroai_warn "  ⚠  ${label}: ${used_pct}% used — prune soon (astroai-home-clean --all-safe)"
+        astroai_warn "  ⚠  ${label}: ${used_pct}% used — prune soon (canfar-lab clean home --all-safe)"
         return 1
     elif [[ "${used_pct}" -ge 80 ]]; then
-        astroai_warn "  ⚠  ${label}: ${used_pct}% used — monitor (astroai-home-usage)"
+        astroai_warn "  ⚠  ${label}: ${used_pct}% used — monitor (canfar-lab status)"
         return 1
     fi
     return 0

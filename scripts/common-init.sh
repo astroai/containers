@@ -51,7 +51,7 @@ git config --global --add safe.directory "${_src_root}" 2>/dev/null || true
 mkdir -p "${_src_root}"
 cd "${_src_root}"
 
-# Track session start time for astroai-status; reset per-session auto-archive markers
+# Track session start time for canfar-lab status; reset per-session auto-archive markers
 mkdir -p "${HOME}/.astroai"
 date -u +%s > "${HOME}/.astroai/session-started"
 rm -f "${HOME}/.astroai/auto-archived" "${HOME}"/.astroai/auto-archived-*
@@ -66,27 +66,27 @@ if [[ ! -f "${HOME}/.astroai/welcomed" ]]; then
   ╚══════════════════════════════════════════════════════╝
 
   Quick start:
-    astroai-new myproject          create a new project
-    astroai-clone owner/repo       clone a GitHub project (--from-env for shared deps)
+    canfar-lab init myproject          create a new project
+    canfar-lab clone owner/repo        clone a GitHub project (--from-env for shared deps)
 
   Once you have code:
-    pixi run python analysis.py    run your project
-    git push                        back up to GitHub
-    astroai-session-archive         save everything before closing
+    pixi run python analysis.py        run your project
+    git push                            back up to GitHub
+    canfar-lab push                     save everything before closing
 
   Storage:
-    TMP_SRC_DIR     code + env (see astroai-debug)
+    TMP_SRC_DIR     code + env (see canfar-lab doctor)
     TMP_SCRATCH_DIR datasets + caches when mounted
     /arc/home       persistent config, saves, AI tools in ~/.local
 
   Getting help:
-    astroai-help                    full command list
-    less /opt/astroai/USAGE.md      detailed usage guide
+    canfar-lab guide                    full command list
+    less /opt/astroai/USAGE.md          detailed usage guide
 
   AI coding agents (once per user, persists on /arc):
-    astroai-agent-setup             MCP + skills — run this first
-    astroai-install agent           or claude, goose, opencode, codex
-    astroai-agent-setup update      refresh after image upgrade
+    canfar-lab agent setup              MCP + skills — run this first
+    canfar-lab agent install agent      or claude, goose, opencode, codex
+    canfar-lab agent update             refresh after image upgrade
 WELCOME
         if [[ "${ASTROAI_SESSION_KIND:-}" == "webterm" ]]; then
             cat <<'WEBTERM'

@@ -75,7 +75,7 @@ export TORCH_HOME="${TORCH_HOME:-${XDG_CACHE_HOME}/torch}"
 # ML / UI caches (persistent on /arc; prune when large)
 export MPLCONFIGDIR="${MPLCONFIGDIR:-${XDG_CACHE_HOME}/matplotlib}"
 
-# Lightweight env save manifests (lockfiles); see astroai-env-save / astroai-env-resume
+# Lightweight env save manifests (lockfiles); see canfar-lab save / canfar-lab resume
 export ASTROAI_SAVE_DIR="${ASTROAI_SAVE_DIR:-${HOME}/.astroai/saves}"
 
 # Compile/download temps — scratch dir when mounted, else under TMP_SRC_DIR
@@ -142,9 +142,9 @@ __astroai_scratch_reminder() {
     fi
 
     if [[ -n "${_summary}" ]]; then
-        printf '\n  \033[1;33m⏳ %dh %dm (%s)\033[0m\n  → git push or astroai-session-archive (${TMP_SRC_DIR} is ephemeral)\n\n' "${_hours}" "${_mins}" "${_summary}"
+        printf '\n  \033[1;33m⏳ %dh %dm (%s)\033[0m\n  → git push or canfar-lab push --yes (${TMP_SRC_DIR} is ephemeral)\n\n' "${_hours}" "${_mins}" "${_summary}"
     else
-        printf '\n  \033[1;33m⏳ %dh %dm — git push or astroai-session-archive (${TMP_SRC_DIR} is ephemeral)\033[0m\n\n' "${_hours}" "${_mins}"
+        printf '\n  \033[1;33m⏳ %dh %dm — git push or canfar-lab push --yes (${TMP_SRC_DIR} is ephemeral)\033[0m\n\n' "${_hours}" "${_mins}"
     fi
 
     mkdir -p "${HOME}/.astroai"
@@ -187,7 +187,7 @@ __astroai_quota_reminder() {
         _level="monitor"
         _color='\033[1;33m'  # yellow
     fi
-    printf '\n  %b⚠  home: %d%% used (%s) — astroai-home-clean --all-safe%b\n\n' "${_color}" "${_used_pct}" "${_level}" '\033[0m'
+    printf '\n  %b⚠  home: %d%% used (%s) — canfar-lab clean home --all-safe%b\n\n' "${_color}" "${_used_pct}" "${_level}" '\033[0m'
 }
 
 # ── Pre-exit auto-archive (once per git repo per session) ──
@@ -204,7 +204,7 @@ __astroai_auto_archive() {
 
     mkdir -p "${HOME}/.astroai"
     touch "${_marker}"
-    if astroai-session-archive --force >>"${_log}" 2>&1; then
+    if canfar-lab push --yes >>"${_log}" 2>&1; then
         return 0
     fi
     rm -f "${_marker}"

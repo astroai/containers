@@ -1,5 +1,0 @@
-# AstroAI hints for Goose (project-level: copy to .goosehints in repo root)
-
-Use rg/fd/gh before asking for full file reads. Code lives in TMP_SRC_DIR (/srcdir); stage data on TMP_SCRATCH_DIR (/scratch).
-Install deps with pixi install or uv sync. Push git or run astroai-session-archive before the session ends.
-For Python: pixi run python … or uv run python … from the project root.

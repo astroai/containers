@@ -105,37 +105,17 @@ RUN mkdir -p /opt/astroai/{bin,cache,lib,venv} /cadc "${ASTROAI_DEFAULT_SRC_DIR}
     && chmod 1777 "${ASTROAI_DEFAULT_SRC_DIR}"
 
 COPY config/cadc-tools.txt /opt/astroai/cadc-tools.txt
-COPY config/agent/ /opt/astroai/agent/
+COPY vendor/canfar_lab-0.1.0-py3-none-any.whl /tmp/canfar_lab.whl
 COPY scripts/patch-clint-py313.sh /tmp/patch-clint-py313.sh
 RUN uv venv /opt/astroai/venv/cadc \
     && uv pip install --python /opt/astroai/venv/cadc -r /opt/astroai/cadc-tools.txt \
+    && uv pip install --python /opt/astroai/venv/cadc /tmp/canfar_lab.whl \
     && bash /tmp/patch-clint-py313.sh /opt/astroai/venv/cadc \
-    && rm /tmp/patch-clint-py313.sh \
+    && rm /tmp/patch-clint-py313.sh /tmp/canfar_lab.whl \
     && chmod -R a+rX /opt/astroai/venv/cadc
 
 COPY scripts/lib/astroai-env-common.sh scripts/lib/astroai-ui.sh scripts/lib/astroai-load.sh scripts/lib/skaha-proxy.sh /opt/astroai/lib/
-COPY scripts/astroai-env-save scripts/astroai-env-resume scripts/astroai-env-list \
-    scripts/astroai-workspace-save.sh scripts/astroai-workspace-restore.sh \
-    scripts/astroai-home-usage scripts/astroai-home-clean scripts/astroai-cache-prune \
-    scripts/astroai-help.sh scripts/astroai-status.sh scripts/astroai-new.sh \
-    scripts/astroai-clone.sh scripts/astroai-debug.sh scripts/astroai-install.sh \
-    scripts/astroai-agent-setup.sh \
-    scripts/astroai-session-archive.sh scripts/astroai-data-sync.sh \
-    scripts/astroai-project-init.sh scripts/astroai-kernel-register scripts/canfar-verify.sh \
-    /opt/astroai/bin/
-RUN chmod a+rx /opt/astroai/bin/* /opt/astroai/lib/* \
-    && ln -sf astroai-help.sh /opt/astroai/bin/astroai-help \
-    && ln -sf astroai-status.sh /opt/astroai/bin/astroai-status \
-    && ln -sf astroai-new.sh /opt/astroai/bin/astroai-new \
-    && ln -sf astroai-clone.sh /opt/astroai/bin/astroai-clone \
-    && ln -sf astroai-debug.sh /opt/astroai/bin/astroai-debug \
-    && ln -sf astroai-install.sh /opt/astroai/bin/astroai-install \
-    && ln -sf astroai-agent-setup.sh /opt/astroai/bin/astroai-agent-setup \
-    && ln -sf astroai-session-archive.sh /opt/astroai/bin/astroai-session-archive \
-    && ln -sf astroai-data-sync.sh /opt/astroai/bin/astroai-data-stage \
-    && ln -sf astroai-data-sync.sh /opt/astroai/bin/astroai-data-sync \
-    && ln -sf astroai-project-init.sh /opt/astroai/bin/astroai-project-init \
-    && ln -sf astroai-workspace-save.sh /opt/astroai/bin/astroai-workspace-save \
-    && ln -sf astroai-workspace-restore.sh /opt/astroai/bin/astroai-workspace-restore
+COPY scripts/canfar-verify.sh /opt/astroai/bin/
+RUN chmod a+rx /opt/astroai/bin/* /opt/astroai/lib/*
 
 COPY docs/USAGE.md /opt/astroai/USAGE.md

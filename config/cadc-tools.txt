@@ -4,3 +4,4 @@ cadcdata==2.5.2
 cadctap==0.10.1
 vos==3.6.4
 canfar==1.4.1
+# canfar-lab installed from vendor wheel in Dockerfile (same venv).

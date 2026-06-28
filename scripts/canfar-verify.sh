@@ -44,9 +44,9 @@ check "login shell: cadcput" login_shell 'command -v cadcput >/dev/null'
 check "login shell: cadc-tap" login_shell 'command -v cadc-tap >/dev/null'
 check "login shell: vcp" login_shell 'command -v vcp >/dev/null'
 check "login shell: cadc-get-cert" login_shell 'command -v cadc-get-cert >/dev/null'
-check "login shell: astroai-help" login_shell 'command -v astroai-help >/dev/null'
-check "login shell: astroai-agent-setup" login_shell 'command -v astroai-agent-setup >/dev/null'
-check "agent bundle manifest" test -f /opt/astroai/agent/manifest.json
+check "login shell: canfar-lab" login_shell 'command -v canfar-lab >/dev/null'
+check "canfar-lab doctor" login_shell 'canfar-lab doctor >/dev/null 2>&1'
+check "canfar-lab agent verify" login_shell 'canfar-lab agent verify >/dev/null 2>&1'
 
 for tool in gh rg fd bat fzf hyperfine uv pixi micromamba mamba patch make file xxd hexdump lsof ss host ncdu shellcheck ctags \
     gcc g++ gfortran ld ar rustc cargo \

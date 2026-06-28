@@ -6,7 +6,7 @@ For **AstroAI project maintainers** who build, push, and register `images.canfar
 
 | Role | Scope | Where |
 |------|--------|--------|
-| **AstroAI maintainer** (this doc) | Build, push, register images; smoke-test on CANFAR | astroai-containers, Harbor `astroai/`, Science Portal |
+| **AstroAI maintainer** (this doc) | Build, push, register images; smoke-test on CANFAR | containers, Harbor `astroai/`, Science Portal |
 | **CANFAR platform admin** | Skaha Helm, launch scripts, ingress, cluster config | opencadc/science-platform |
 
 ## Images and session types
@@ -75,7 +75,7 @@ jupyter lab \
   ...
 ```
 
-That script is **not in astroai-containers** — Jupyter `NotebookApp → ServerApp` migration warnings, `root_dir=/`, and missing `common-init` on notebook sessions are **CANFAR platform behaviour** until the science-platform team changes `launch-notebook.yaml` or modernizes `start-jupyterlab.sh`.
+That script is **not in containers** — Jupyter `NotebookApp → ServerApp` migration warnings, `root_dir=/`, and missing `common-init` on notebook sessions are **CANFAR platform behaviour** until the science-platform team changes `launch-notebook.yaml` or modernizes `start-jupyterlab.sh`.
 
 **Contributed sessions:** ingress path stripping is platform-defined (`ingress-contributed.yaml`); listen on `/` and set proxy URL flags in our startup scripts — do not fight the platform path model.
 
@@ -140,7 +140,7 @@ containers:
 
 When reviewing `canfar logs`, distinguish platform noise from image issues:
 
-| Source | Examples | Fixable in astroai-containers? |
+| Source | Examples | Fixable in containers? |
 |--------|----------|--------------------------------|
 | **Platform notebook launcher** | `NotebookApp` migration warnings; `root_dir=/` | No — science-platform `start-jupyterlab.sh` |
 | **Image (contributed)** | Quota banner, CADC `SyntaxWarning`, verify job-control spam | Yes — shipped in `26.06+` |
@@ -209,9 +209,9 @@ The script creates a headless session, waits for it to finish, prints logs (`can
 
 Verify checks include CADC/CANFAR CLIs (`canfar`, `cadcget`, `cadc-tap`, `vcp`) on **login shells** (`bash -l`), matching webterm tmux behaviour.
 
-## Diagnostic tool (`astroai-debug`)
+## Diagnostic tool (`canfar-lab doctor`)
 
-Every session image includes `astroai-debug`, a comprehensive diagnostic tool that produces a timestamped snapshot of the container's runtime state. Operators can use it to inspect live containers, triage user issues, or gather fleet-wide health data.
+Every session image includes `canfar-lab doctor`, a comprehensive diagnostic tool that produces a timestamped snapshot of the container's runtime state. Operators can use it to inspect live containers, triage user issues, or gather fleet-wide health data.
 
 ### What it covers
 
@@ -234,29 +234,29 @@ The report has 10 sections:
 
 ```bash
 # From the container shell (as the user)
-astroai-debug                     # prints + saves to ~/.astroai/debug-<timestamp>.log
-astroai-debug --stdout            # print only (no file saved)
+canfar-lab doctor                     # prints + saves to ~/.astroai/debug-<timestamp>.log
+canfar-lab doctor --stdout            # print only (no file saved)
 
 # As an operator (inspect via docker exec or kubectl exec)
-docker exec <container> astroai-debug --stdout
-kubectl exec <pod> -- astroai-debug --stdout
+docker exec <container> canfar-lab doctor --stdout
+kubectl exec <pod> -- canfar-lab doctor --stdout
 ```
 
 ### Operator use cases
 
-**Triage user reports:** Ask the user to run `astroai-debug` and share the log (`cat ~/.astroai/debug-*.log`). The report answers the most common support questions in one file — are **`TMP_SRC_DIR`** / **`TMP_SCRATCH_DIR`** writable? Is the profile sourced? Are tools present? Is the network reachable?
+**Triage user reports:** Ask the user to run `canfar-lab doctor` and share the log (`cat ~/.astroai/debug-*.log`). The report answers the most common support questions in one file — are **`TMP_SRC_DIR`** / **`TMP_SCRATCH_DIR`** writable? Is the profile sourced? Are tools present? Is the network reachable?
 
-**Fleet health:** Run `astroai-debug --stdout` across all running containers to spot patterns — stale sessions with zero scratch usage, quota-pressure nodes, or CVMFS mount failures.
+**Fleet health:** Run `canfar-lab doctor --stdout` across all running containers to spot patterns — stale sessions with zero scratch usage, quota-pressure nodes, or CVMFS mount failures.
 
-**Image smoke test:** During image development, run `astroai-debug --stdout` inside the test container after `test-local.sh` to confirm all pre-installed tools are present, the profile is sourced, and CVMFS is reachable.
+**Image smoke test:** During image development, run `canfar-lab doctor --stdout` inside the test container after `test-local.sh` to confirm all pre-installed tools are present, the profile is sourced, and CVMFS is reachable.
 
 ### Log location
 
 By default, reports save to `~/.astroai/debug-<YYYYMMDDTHHMMSSZ>.log` on `/arc` (persists across sessions). The `--file` flag saves to a custom path.
 
-## AI coding tools (`astroai-install`)
+## AI coding tools (`canfar-lab agent install`)
 
-Session images ship a curated set of dev CLIs (`gh`, `rg`, `fd`, `bat`, `fzf`, `delta`, `tldr`) but do **not** bundle AI agent binaries or Node.js — those change too fast to pin in an image. Users install them on-demand with `astroai-install`, which handles the right installer per tool and verifies each install. All tools land in `~/.local/bin` on `/arc` (persistent across sessions).
+Session images ship a curated set of dev CLIs (`gh`, `rg`, `fd`, `bat`, `fzf`, `delta`, `tldr`) but do **not** bundle AI agent binaries or Node.js — those change too fast to pin in an image. Users install them on-demand with `canfar-lab agent install`, which handles the right installer per tool and verifies each install. All tools land in `~/.local/bin` on `/arc` (persistent across sessions).
 
 ### Available tools
 
@@ -274,36 +274,36 @@ Session images ship a curated set of dev CLIs (`gh`, `rg`, `fd`, `bat`, `fzf`, `
 | Swival | `swival` | `uv tool install` | No |
 | Freebuff | `freebuff` | npm | **Yes** |
 
-The table reflects `astroai-install`'s chosen install path. Some tools have alternative install methods (e.g., Codex also has an npm package, OpenCode offers an npm option) — USAGE.md covers those for users who install manually.
+The table reflects `canfar-lab agent install`'s chosen install path. Some tools have alternative install methods (e.g., Codex also has an npm package, OpenCode offers an npm option) — USAGE.md covers those for users who install manually.
 
 Seven of eleven tools install without Node. Codex uses `gh release download` (requires `gh auth login`). Swival uses `uv tool install`. Pi, CodeWhale, and Freebuff need npm — the script detects a missing `npm` and guides the user to install Node via pixi or CVMFS.
 
 ### Pre-seeding in the base image
 
-**Recommendation:** Pre-seed nothing by default. Tools install once to `/arc` via `astroai-install` and persist; baking agents adds ~300–500 MB and freezes weekly-moving binaries at build time. If a site needs zero-setup, pre-seed 2–3 audited tools in `dockerfiles/base/Dockerfile` and document that `astroai-install` still fetches the latest version.
+**Recommendation:** Pre-seed nothing by default. Tools install once to `/arc` via `canfar-lab agent install` and persist; baking agents adds ~300–500 MB and freezes weekly-moving binaries at build time. If a site needs zero-setup, pre-seed 2–3 audited tools in `dockerfiles/base/Dockerfile` and document that `canfar-lab agent install` still fetches the latest version.
 
 ### npm-based agents and Node.js
 
-Pi, CodeWhale, and Freebuff are npm-only. Users run `astroai-install node` once
+Pi, CodeWhale, and Freebuff are npm-only. Users run `canfar-lab agent install node` once
 (pixi global → `~/.local/bin`, persists on `/arc`), then install the npm-based
 agents. Alternatives: `pixi add nodejs` under **`TMP_SRC_DIR`**, or CVMFS
 `module load nodejs`.
 
 ### Operator implications
 
-**Support:** Most AI tool issues are auth-related (expired tokens, wrong API key) — not install problems. `astroai-install` prints first-run instructions after each install (e.g., `Run: claude` for sign-in). Point users at those.
+**Support:** Most AI tool issues are auth-related (expired tokens, wrong API key) — not install problems. `canfar-lab agent install` prints first-run instructions after each install (e.g., `Run: claude` for sign-in). Point users at those.
 
 **Common issues:**
 - `gh release download` fails for codex → `gh auth login` not run, or GitHub token expired
-- `npm not found` for pi/codewhale/freebuff → user needs `astroai-install node`, `pixi add nodejs`, or `module load nodejs`
+- `npm not found` for pi/codewhale/freebuff → user needs `canfar-lab agent install node`, `pixi add nodejs`, or `module load nodejs`
 - Binary not on PATH → user needs `hash -r` or a new shell after install
 - Tool update → each tool has its own update: Cursor Agent `agent update`, Antigravity `agy update`, Claude Code auto-updates, `uv tool upgrade swival`, npm globals for pi/codewhale/freebuff
 
 **Security:** Seven of eleven tools install via `curl | bash`. This is the vendor-recommended method and standard industry practice for CLI tools. Operators concerned about supply chain risk can:
 - Pre-seed audited versions in the Dockerfile (binary verified at build time)
-- Block curl-based installers at the network level (but this also disables `astroai-install`)
+- Block curl-based installers at the network level (but this also disables `canfar-lab agent install`)
 
-**Audit trail:** `astroai-debug` checks 19 pre-installed system tools but does not list user-installed AI agents. If fleet-wide AI tool tracking is needed, consider adding a separate audit script (`ls ~/.local/bin/agent ~/.local/bin/claude ~/.local/bin/agy ~/.local/bin/opencode ~/.local/bin/codex ~/.local/bin/copilot ~/.local/bin/goose ~/.local/bin/pi ~/.local/bin/codewhale ~/.local/bin/swival ~/.local/bin/freebuff`).
+**Audit trail:** `canfar-lab doctor` checks 19 pre-installed system tools but does not list user-installed AI agents. If fleet-wide AI tool tracking is needed, consider adding a separate audit script (`ls ~/.local/bin/agent ~/.local/bin/claude ~/.local/bin/agy ~/.local/bin/opencode ~/.local/bin/codex ~/.local/bin/copilot ~/.local/bin/goose ~/.local/bin/pi ~/.local/bin/codewhale ~/.local/bin/swival ~/.local/bin/freebuff`).
 
 ## Quota monitoring
 
@@ -314,15 +314,15 @@ Session images include built-in quota awareness for `/arc/home` (personal) and `
 | Touchpoint | When | What it does |
 |-----------|------|-------------|
 | Session start (`common-init.sh`) | Every new session | Runs `astroai_quota_startup_check` — silently probes home and project quota via `df`; prints warnings only if a threshold is crossed |
-| `astroai-status` | User runs it manually | Quota lines for home and projects, home dir breakdown, current project usage, top processes |
-| `astroai-home-usage` | User runs it manually | Opens with a quota overview for home and all accessible projects, plus a percentage summary |
+| `canfar-lab status` | User runs it manually | Quota lines for home and projects, home dir breakdown, current project usage, top processes |
+| `canfar-lab status` | User runs it manually | Opens with a quota overview for home and all accessible projects, plus a percentage summary |
 
 ### Threshold levels
 
 | Level | Threshold | Message | Action |
 |-------|-----------|---------|--------|
-| Monitor | ≥ 80% | `⚠ monitor (astroai-home-usage)` | No action needed — user sees a heads-up |
-| High | ≥ 90% | `⚠ high — prune soon (astroai-home-clean --all-safe)` | Encourage home cleanup |
+| Monitor | ≥ 80% | `⚠ monitor (canfar-lab status)` | No action needed — user sees a heads-up |
+| High | ≥ 90% | `⚠ high — prune soon (canfar-lab clean home --all-safe)` | Encourage home cleanup |
 | Critical | ≥ 95% | `⚠ CRITICAL — near quota limit` | Immediate pruning required; env save may fail |
 
 ### How quota is measured
@@ -343,10 +343,10 @@ At session start, `astroai_quota_startup_check` walks up from the current workin
 **Capacity planning:** Monitor quota warnings across the fleet to identify groups approaching their `/arc` allocation before users hit write errors.
 
 **Support:** When a user reports `env-save` failures or `No space left on device` errors, check:
-1. `astroai-debug` Disk section — shows **`TMP_SRC_DIR`**, **`TMP_SCRATCH_DIR`**, and `/arc/home` free space
-2. `astroai-home-usage` — breaks down what's consuming the user's quota
-3. `astroai-home-clean --all-safe` — clears re-downloadable junk under `/arc/home`
-4. `astroai-cache-prune --all-safe` — clears scratch download caches if needed
+1. `canfar-lab doctor` Disk section — shows **`TMP_SRC_DIR`**, **`TMP_SCRATCH_DIR`**, and `/arc/home` free space
+2. `canfar-lab status` — breaks down what's consuming the user's quota
+3. `canfar-lab clean home --all-safe` — clears re-downloadable junk under `/arc/home`
+4. `canfar-lab clean cache --all-safe` — clears scratch download caches if needed
 
 **Quota visibility is passive:** The checks read usage percentages from the filesystem — they do not enforce limits or block writes. The platform controls actual quota enforcement at the CephFS level.
 
@@ -354,12 +354,12 @@ At session start, `astroai_quota_startup_check` walks up from the current workin
 
 Session images use **`TMP_SRC_DIR`** (default `/srcdir`) for code and **`TMP_SCRATCH_DIR`** (default `/scratch`) for staged data and download caches — both are fast local SSD, wiped at session end. Persistent storage lives on `/arc` (CephFS, permanent). Commands bridge these tiers and let users persist work before closing a session.
 
-### `astroai-session-archive` — closing a session safely
+### `canfar-lab push` — closing a session safely
 
 Users run this before ending a session. It performs three steps:
 
 1. **Git push** — pushes the current branch. Warns if uncommitted changes exist (the push still runs, but uncommitted work is called out).
-2. **Environment save** — auto-detects pixi/uv projects and runs `astroai-env-save`. Accepts `--name <custom>` for team-friendly save names.
+2. **Environment save** — auto-detects pixi/uv projects and runs `canfar-lab save`. Accepts `--name <custom>` for team-friendly save names.
 3. **Summary** — reports what was archived and whether anything was missed:
    - `git push: done` or `git push: skipped`
    - `env save: done (<name>)` or `env save: skipped`
@@ -369,14 +369,14 @@ If the user is not in a git repo or no pixi/uv project is detected, the script t
 
 The summary closes with a **`TMP_SRC_DIR` ephemeral** warning and contextual advice based on what was successfully archived.
 
-### `astroai-data-stage` / `astroai-data-sync` — moving data between tiers
+### `canfar-lab data stage` / `canfar-lab data sync` — moving data between tiers
 
 These are rsync wrappers for the two directions of data movement:
 
 | Command | Direction | Default target |
 |---------|-----------|---------------|
-| `astroai-data-stage <src> [dst]` | Persistent → **`TMP_SCRATCH_DIR`** | `${TMP_SCRATCH_DIR}/<basename of src>` |
-| `astroai-data-sync <src> <dst>` | **`TMP_SCRATCH_DIR`** → Persistent | *(required)* |
+| `canfar-lab data stage <src> [dst]` | Persistent → **`TMP_SCRATCH_DIR`** | `${TMP_SCRATCH_DIR}/<basename of src>` |
+| `canfar-lab data sync <src> <dst>` | **`TMP_SCRATCH_DIR`** → Persistent | *(required)* |
 
 - **Stage** shows source size and asks before overwriting an existing target.
 - **Sync** shows source size plus destination free space, and warns if the source is not under **`TMP_SCRATCH_DIR`**.
@@ -387,16 +387,16 @@ These are rsync wrappers for the two directions of data movement:
 ```
 Session start (cwd = TMP_SRC_DIR, default /srcdir)
     │
-    ├── astroai-data-stage /arc/projects/mygroup/data.fits   ← stage data to TMP_SCRATCH_DIR
+    ├── canfar-lab data stage /arc/projects/mygroup/data.fits   ← stage data to TMP_SCRATCH_DIR
     │
     ▼
 Active work (code on TMP_SRC_DIR, datasets on TMP_SCRATCH_DIR)
     │
-    ├── astroai-data-sync ${TMP_SCRATCH_DIR}/results/ /arc/projects/mygroup/results/
+    ├── canfar-lab data sync ${TMP_SCRATCH_DIR}/results/ /arc/projects/mygroup/results/
     ├── git commit -am "results"
     │
     ▼
-astroai-session-archive                                    ← push code + save env + summary
+canfar-lab push                                    ← push code + save env + summary
     │
     ▼
 Session ends → TMP_SRC_DIR and TMP_SCRATCH_DIR wiped
@@ -409,22 +409,22 @@ Session ends → TMP_SRC_DIR and TMP_SCRATCH_DIR wiped
 | Was it... | Check | Recovery path |
 |-----------|-------|--------------|
 | Code | Git remote | If pushed, clone back. If not pushed, data was on `/scratch` — unrecoverable. |
-| Environment | `~/.astroai/saves/` or `/arc/projects/<group>/env-saves/` | Resume with `astroai-env-resume` |
+| Environment | `~/.astroai/saves/` or `/arc/projects/<group>/env-saves/` | Resume with `canfar-lab resume` |
 | Data | `/arc/projects/<group>/` | If synced, data is safe. If still on `/scratch`, unrecoverable. |
 
 **Common failure modes operators can help with:**
 
 - **Git push fails** — no remote configured, or GitHub auth token expired. Guide user through `gh auth login` or `git remote add origin`.
-- **Env save fails** — quota full. Check `astroai-home-usage`, recommend `astroai-home-clean --all-safe`, retry save.
-- **Data sync not run** — `/scratch` is unrecoverable after session expiry. Emphasize this in onboarding; the `astroai-session-archive` summary reminds users but doesn't run `astroai-data-sync` automatically (it doesn't know which data to sync).
+- **Env save fails** — quota full. Check `canfar-lab status`, recommend `canfar-lab clean home --all-safe`, retry save.
+- **Data sync not run** — `/scratch` is unrecoverable after session expiry. Emphasize this in onboarding; the `canfar-lab push` summary reminds users but doesn't run `canfar-lab data sync` automatically (it doesn't know which data to sync).
 
 **Capacity planning:**
 
 - Data staged to `/scratch` consumes local SSD on the compute node — large datasets can exhaust node-local storage.
 - Data synced to `/arc/projects` increases project quota consumption. The quota monitoring system (see above) catches this at 80/90/95% thresholds.
-- `astroai-data-sync` shows destination free space before syncing, giving users a chance to abort if the target is near quota.
+- `canfar-lab data sync` shows destination free space before syncing, giving users a chance to abort if the target is near quota.
 
-**Platform safety note:** The platform does not trigger `astroai-session-archive` or `astroai-data-sync` automatically at session end. `/scratch` is wiped with no recovery path. Operators may want to:
+**Platform safety note:** The platform does not trigger `canfar-lab push` or `canfar-lab data sync` automatically at session end. `/scratch` is wiped with no recovery path. Operators may want to:
 - Document this prominently in session onboarding materials.
 - Consider a platform-side pre-stop hook that sends users a `/scratch` reminder (but note: automating `rsync` runs or `git push` in a shutdown hook carries risk — partial transfers, stale credentials, quota exhaustion mid-sync). The current design keeps these decisions user-initiated.
 
