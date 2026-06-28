@@ -10,6 +10,43 @@ for _libdir in /opt/astroai/lib "$(dirname "${BASH_SOURCE[0]}")/lib" "$(dirname 
     fi
 done
 
+usage() {
+    cat <<'EOF' >&2
+astroai-help — quick command reference (see USAGE.md for details).
+Usage: astroai-help
+  --help for details
+EOF
+    exit 1
+}
+
+help_full() {
+    cat <<'EOF'
+astroai-help — quick command reference.
+
+Prints a categorized list of AstroAI commands on stdout.
+For full documentation: less /opt/astroai/USAGE.md
+
+Usage:
+  astroai-help
+
+Options:
+  -h          Short help (stderr, exit 1)
+  --help      This help (stdout, exit 0)
+EOF
+    exit 0
+}
+
+case "${1:-}" in
+    -h) usage ;;
+    --help) help_full ;;
+    "")
+        ;;
+    *)
+        astroai_err "Unexpected argument: $1"
+        usage
+        ;;
+esac
+
 astroai_title "AstroAI commands (on PATH via /opt/astroai/bin)"
 astroai_divider
 echo ""

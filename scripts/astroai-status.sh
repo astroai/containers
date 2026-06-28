@@ -42,6 +42,12 @@ EOF
 case "${1:-}" in
     -h) usage; exit 1 ;;
     --help) help_full; exit 0 ;;
+    "") ;;
+    *)
+        astroai_err "Unexpected argument: $1"
+        usage
+        exit 1
+        ;;
 esac
 
 astroai_title "AstroAI session status"

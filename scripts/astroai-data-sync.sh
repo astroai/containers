@@ -17,17 +17,43 @@ done
 
 SCRATCH="$(astroai_scratch_dir)"
 
-# Determine mode from the command name
+help_both() {
+    cat <<'EOF'
+Data transfer between persistent storage (/arc) and TMP_SCRATCH_DIR (/scratch).
+
+  astroai-data-stage <source> [target]   persistent → scratch (fast I/O)
+  astroai-data-sync  <source> <target>   scratch → persistent (before session ends)
+
+Run with a command name (not the .sh file) for mode-specific help:
+  astroai-data-stage --help
+  astroai-data-sync --help
+EOF
+}
+
+# Determine mode from the command name (image symlinks or *.sh for dev)
 CMD="$(basename "$0")"
 MODE=""
 case "${CMD}" in
-    astroai-data-stage) MODE="stage" ;;
-    astroai-data-sync)  MODE="sync" ;;
-    *)
-        echo "Usage: astroai-data-stage <source> [target]   or   astroai-data-sync <source> <target>" >&2
-        exit 1
-        ;;
+    astroai-data-stage|astroai-data-stage.sh) MODE="stage" ;;
+    astroai-data-sync|astroai-data-sync.sh)  MODE="sync" ;;
 esac
+
+if [[ -z "${MODE}" ]]; then
+    case "${1:-}" in
+        -h)
+            echo "astroai-data-stage / astroai-data-sync — move data between /arc and /scratch." >&2
+            echo "Usage: astroai-data-stage <source> [target]" >&2
+            echo "       astroai-data-sync <source> <target>" >&2
+            echo "  --help for details" >&2
+            exit 1
+            ;;
+        --help) help_both; exit 0 ;;
+        *)
+            echo "Usage: astroai-data-stage <source> [target]   or   astroai-data-sync <source> <target>" >&2
+            exit 1
+            ;;
+    esac
+fi
 
 usage() {
     if [[ "${MODE}" == "stage" ]]; then

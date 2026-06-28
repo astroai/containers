@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
         --all)  ALL=1; shift ;;
         -h) usage ;;
         --help) help_full ;;
-        *) echo "Unknown option: $1" >&2; exit 1 ;;
+        *) astroai_err "Unknown option: $1"; usage ;;
     esac
 done
 

@@ -2,6 +2,7 @@ _build/
 *.log
 .env
 .env.*
+!.env.example
 *.pyc
 __pycache__/
 .DS_Store

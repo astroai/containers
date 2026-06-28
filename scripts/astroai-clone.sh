@@ -53,6 +53,12 @@ case "${1:-}" in
     --help) help_full; exit 0 ;;
 esac
 
+for _arg in "$@"; do
+    case "${_arg}" in
+        -h) usage; exit 1 ;;
+        --help) help_full; exit 0 ;;
+    esac
+done
 
 REPO="${1:-}"
 TARGET="${2:-}"

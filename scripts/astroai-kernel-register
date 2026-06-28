@@ -292,8 +292,8 @@ fi
 
 if [[ -z "${PROJECT_ROOT}" ]]; then
     PROJECT_ROOT="$(astroai_resolve_project "${PWD}")" || {
-        echo "No pixi/uv/venv project found (need pixi.toml, pyproject.toml, or .venv)." >&2
-        echo "Usage: astroai-kernel-register [path]" >&2
+        astroai_err "No pixi/uv/venv project found (need pixi.toml, pyproject.toml, or .venv)."
+        usage
         exit 1
     }
 else

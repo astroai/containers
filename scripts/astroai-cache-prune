@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Prune safe caches (uv/pip/npm/pixi/conda on TMP_SCRATCH_DIR; HF/torch under ~/.cache on /arc).
+# Prune safe caches (uv/pip/npm/pixi/conda on TMP_SCRATCH_DIR; HF under ~/.cache on /arc).
 
 [[ -f /etc/profile.d/astroai.sh ]] && source /etc/profile.d/astroai.sh
 for _libdir in /opt/astroai/lib "$(dirname "${BASH_SOURCE[0]}")/lib" "$(dirname "${BASH_SOURCE[0]}")/../lib"; do
@@ -21,8 +21,8 @@ ALL=0
 
 usage() {
     cat <<'EOF' >&2
-astroai-cache-prune — clear package caches to free /arc quota.
-Usage: astroai-cache-prune --all-safe | --pip --uv --npm --pixi --hf
+astroai-cache-prune — clear package download caches (scratch and /arc).
+Usage: astroai-cache-prune --all-safe | (--pip | --uv | --npm | --pixi | --conda | --hf)...
   --help for details
 EOF
     exit 1
@@ -30,13 +30,14 @@ EOF
 
 help_full() {
     cat <<'EOF'
-astroai-cache-prune — clear package caches to free /arc quota.
+astroai-cache-prune — clear package download caches (scratch and /arc).
 
-Removes package manager caches that accumulate on TMP_SCRATCH_DIR and
-~/.cache (/arc). Run astroai-home-usage first to see what's using space.
+Removes package manager caches on TMP_SCRATCH_DIR and Hugging Face models
+under ~/.cache (/arc). Run astroai-home-usage first to see what's using space.
 
 Usage:
-  astroai-cache-prune --all-safe | --pip --uv --npm --pixi --conda --hf
+  astroai-cache-prune --all-safe
+  astroai-cache-prune (--pip | --uv | --npm | --pixi | --conda | --hf)...
 
 Options:
   --pip             Clear PIP_CACHE_DIR.

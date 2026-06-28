@@ -148,7 +148,8 @@ Legacy alias: `ASTROAI_WORK_ROOT` still works when `TMP_SRC_DIR` is unset.
 | **`TMP_SRC_DIR`** (`/srcdir`) | Repos, active `.pixi`/`.venv` envs | Assuming it persists — always `git push` |
 | **`TMP_SCRATCH_DIR`** (`/scratch`) | Staged datasets, training outputs, download caches | Assuming it persists — `astroai-data-sync` |
 | `~/.astroai/saves/` | Lockfile manifests (small) | `--full` packs unless necessary |
-| `~/.cache/` (HF, torch, matplotlib) | OK — prune with `astroai-cache-prune` | Unbounded model caches |
+| `~/.cache/huggingface` | OK — `astroai-cache-prune --hf` | Large model re-downloads |
+| `~/.cache/torch`, matplotlib, other ML | Manual cleanup (not in cache-prune) | Unbounded caches |
 | `~/.local/bin` | AI tools, small user binaries | Large vendored SDKs |
 | `/arc/projects/<group>/` | Shared datasets, team env-saves | Personal scratch copies |
 
@@ -453,11 +454,17 @@ gh run list --limit 5             # recent CI runs
 | `astroai-data-stage <src> [dst]` | Copy persistent → scratch |
 | `astroai-data-sync <src> <dst>` | Copy scratch → persistent |
 | `astroai-home-usage` | Disk breakdown under `$HOME` |
-| `astroai-cache-prune` | Clear caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--hf`) |
+| `astroai-cache-prune` | Clear caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--conda`, `--hf`) |
 | `astroai-install <tool>` | Install AI tools to `~/.local/bin` (`--list`) |
 | `astroai-debug` | Diagnostic report (`--stdout`, `--file`) |
 
-Every command supports `-h` (short help) and `--help` (detailed help with examples).
+Most `astroai-*` commands support `-h` (short summary on stderr, exit 1) and
+`--help` (detailed help on stdout, exit 0). `astroai-help` prints this index.
+
+```bash
+astroai-cache-prune --help
+astroai-env-save -h
+```
 
 ---
 
@@ -705,7 +712,8 @@ When `/arc` quota feels tight:
 
 ```bash
 astroai-home-usage                # see what's using space
-astroai-cache-prune --all-safe    # clear safe-to-delete caches
+astroai-cache-prune --all-safe    # scratch: pip/uv/npm/pixi/conda caches
+astroai-cache-prune --hf          # /arc: Hugging Face models only
 ```
 
 ---

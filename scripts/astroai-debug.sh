@@ -66,7 +66,7 @@ while [[ $# -gt 0 ]]; do
         --file) [[ -n "${2:-}" ]] || { echo "--file requires a path" >&2; exit 1; }; SAVE_PATH="$2"; shift 2 ;;
         -h) usage ;;
         --help) help_full ;;
-        *) echo "Unknown option: $1" >&2; exit 1 ;;
+        *) astroai_err "Unknown option: $1"; usage ;;
     esac
 done
 
