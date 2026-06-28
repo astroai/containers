@@ -18,9 +18,10 @@ Licensed under [BSD-2-Clause](LICENSE).
 
 | Doc | Audience |
 |-----|----------|
-| [docs/USAGE.md](docs/USAGE.md) | **Session users** — quickstart, `gh`, storage, GPU, pixi/uv, AI CLI install |
+| [docs/USAGE.md](docs/USAGE.md) | **Session users** — AstroAI images, storage, GPU, CADC, workflows |
+| [canfar-lab USAGE](https://github.com/sfabbro/canfar-lab/blob/main/docs/USAGE.md) | **`canfar-lab` CLI** — commands, env, agents |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | **Developers** — clone, build, test, open PRs |
-| [docs/OPERATORS.md](docs/OPERATORS.md) | **AstroAI maintainers** — build, push, register images on CANFAR (not CANFAR platform ops) |
+| [docs/OPERATORS.md](docs/OPERATORS.md) | **AstroAI maintainers** — build, push, register images on CANFAR |
 
 In-session: `canfar-lab guide` · `less /opt/astroai/USAGE.md`
 

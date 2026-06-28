@@ -13,7 +13,8 @@ Platform docs live at
 
 | Doc | Audience |
 |-----|----------|
-| **USAGE.md** (this file) | Session users — getting started, storage, GPU, tools |
+| **USAGE.md** (this file) | AstroAI session users — images, storage, GPU, CADC, workflows |
+| [canfar-lab docs](https://github.com/sfabbro/canfar-lab/blob/main/docs/USAGE.md) | **`canfar-lab` CLI** — commands, env, agents (also `canfar-lab guide`) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Developers changing this repo |
 | [OPERATORS.md](OPERATORS.md) | AstroAI maintainers — build, push, register images on CANFAR |
 | [README.md](../README.md) | Repo overview and build commands |
@@ -103,7 +104,7 @@ pixi run python analysis.py
 That's it — you're up and running. The rest of this guide covers storage details,
 GPU workflows, team workspaces, and everything else.
 
-**Handy commands:** `canfar-lab guide` · `canfar-lab status` · `canfar-lab status` · `less /opt/astroai/USAGE.md`
+**Handy commands:** `canfar-lab guide` · `canfar-lab status` · `canfar-lab doctor` · `less /opt/astroai/USAGE.md`
 
 ---
 
