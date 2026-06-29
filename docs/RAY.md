@@ -1,6 +1,6 @@
 # Distributed Ray on CANFAR
 
-User-owned Ray clusters: a **contributed `ray-manager` session** (port 5000) launches **headless `ray-worker-cpu` sessions** over pod networking. Same storage model as other AstroAI images (`/arc`, `/scratch`).
+User-owned Ray clusters: a **contributed `ray-manager` session** (port 5000) launches **headless `ray-worker-cpu` sessions** over pod networking. Manager sessions use **`/arc`** and **`/scratch`**. Headless workers require **`/scratch`**; **`/arc` is optional** — when absent, the worker skips the manager heartbeat monitor and continues (see `start-worker.sh`).
 
 ## Images
 
@@ -44,7 +44,7 @@ Maintainer smoke tests load docker login credentials and persist them to `/arc/h
 
 ## Network preflight
 
-Preflight launches a **headless probe session** to verify pod-to-pod TCP on Ray ports (6379–6381). This requires CANFAR/Skaha to allow traffic between a user's contributed manager and their headless workers. If all `worker->manager` checks fail while the manager is healthy, that is usually **platform session-to-session network isolation** — see [ray-build-plan.md](ray-build-plan.md) §18.
+Preflight launches a **headless probe session** to verify pod-to-pod TCP on Ray ports (6379–6381). This requires CANFAR/Skaha to allow traffic between a user's contributed manager and their headless workers. If all `worker->manager` checks fail while the manager is healthy, that is usually **platform session-to-session network isolation** — see [ray-build-plan.md](ray-build-plan.md) §18. Worker logs showing `ERROR: cannot reach Ray head at <manager-ip>:6379` confirm the same block after the worker starts.
 
 Maintainer tests can set `CANFAR_RAY_SKIP_PREFLIGHT=1` to exercise UI/auth without preflight when staging blocks cross-session TCP.
 
