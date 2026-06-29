@@ -160,7 +160,7 @@ for w in data.get('workers') or []:
 wait_for_manager_operation() {
     local timeout="${1:-${TIMEOUT}}"
     local label="${2:-operation}"
-    echo "Waiting for ${label} (timeout ${timeout}s)..."
+    echo "Waiting for ${label} (timeout ${timeout}s)..." >&2
     local deadline=$((SECONDS + timeout))
     local last_phase=""
     while (( SECONDS < deadline )); do
@@ -186,7 +186,7 @@ d = json.load(sys.stdin)
 print(d.get('joined_workers', 0))
 " 2>/dev/null || echo 0)"
         if [[ "${phase}" != "${last_phase}" ]]; then
-            echo "  phase=${phase} joined=${joined} operation_running=${running}"
+            echo "  phase=${phase} joined=${joined} operation_running=${running}" >&2
             last_phase="${phase}"
         fi
         if [[ "${running}" == "0" ]]; then
@@ -406,6 +406,8 @@ sys.exit(0 if d.get('success') and d.get('joined_workers', 0) >= 2 else 1)
     echo "Two-worker cluster did not reach healthy state." >&2
     FAILURES=$((FAILURES + 1))
     dump_persisted_worker_logs "${CLUSTER_JSON}"
+    # Refresh from live status if cluster JSON lacked worker list.
+    dump_persisted_worker_logs "$(api_curl "${MANAGER_URL}/api/v1/status" 2>/dev/null || true)"
 fi
 
 echo ""

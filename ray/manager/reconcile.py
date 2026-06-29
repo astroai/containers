@@ -27,6 +27,14 @@ def reconcile_cluster(
 
     state.manager_ip = manager_pod_ip()
     state.ray_address = ray_address()
+    if state.preflight:
+        pf_ip = str(state.preflight.get("manager_ip") or "")
+        if pf_ip and pf_ip != state.manager_ip:
+            state.preflight = {
+                **state.preflight,
+                "passed": False,
+                "message": f"stale preflight for manager {pf_ip}; current {state.manager_ip}",
+            }
     ray_ips = live_worker_node_ips()
     head_ip = manager_pod_ip()
     worker_ray_ips = {ip for ip in ray_ips if ip != head_ip}
