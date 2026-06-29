@@ -123,6 +123,16 @@ class CanfarOps:
         info = self.session_info(session_id)
         return str(info.get("status") or "Unknown")
 
+    def session_failure_detail(self, session_id: str) -> str | None:
+        info = self.session_info(session_id)
+        if not info:
+            return None
+        for key in ("statusMessage", "message", "reason", "statusDetails", "exitCode"):
+            val = info.get(key)
+            if val not in (None, ""):
+                return f"{key}={val}"
+        return None
+
     def session_logs(self, session_id: str) -> str:
         logs = self._session.logs(session_id)
         if not logs:

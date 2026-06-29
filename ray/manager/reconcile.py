@@ -49,6 +49,7 @@ def reconcile_cluster(
             if info:
                 worker.canfar_status = str(info.get("status") or "Unknown")
                 _apply_canfar_phase(worker)
+                enrich_worker_failure(canfar, worker)
             elif worker.canfar_status not in {None, "Unknown"}:
                 worker.phase = "Orphaned"
                 worker.last_error = "session not found in CANFAR"
@@ -96,6 +97,14 @@ def _apply_canfar_phase(worker: WorkerRecord) -> None:
         worker.last_error = f"CANFAR status={status}"
     elif status in {"Succeeded", "Completed", "Terminating"}:
         worker.phase = "Stopped"
+
+
+def enrich_worker_failure(canfar: CanfarOps, worker: WorkerRecord) -> None:
+    if worker.phase != "CANFAR Failed":
+        return
+    detail = canfar.session_failure_detail(worker.session_id)
+    if detail:
+        worker.last_error = f"{worker.last_error}; {detail}"
 
 
 def _refresh_cluster_phase(state: ClusterState) -> None:

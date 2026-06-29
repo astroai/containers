@@ -157,6 +157,31 @@ for w in data.get('workers') or []:
     done <<< "${session_ids}"
 }
 
+dump_canfar_cli_worker_logs() {
+    local status_json="${1:-}"
+    [[ -n "${status_json}" ]] || return 0
+    local session_ids
+    session_ids="$(printf '%s' "${status_json}" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except json.JSONDecodeError:
+    sys.exit(0)
+for w in data.get('workers') or []:
+    sid = w.get('session_id')
+    if sid:
+        print(sid)
+" 2>/dev/null || true)"
+    [[ -n "${session_ids}" ]] || return 0
+    echo ""
+    echo "CANFAR CLI worker logs:"
+    while IFS= read -r sid; do
+        [[ -n "${sid}" ]] || continue
+        echo "--- canfar logs ${sid} ---"
+        canfar logs "${sid}" 2>&1 | tail -80 || echo "(canfar logs unavailable)"
+    done <<< "${session_ids}"
+}
+
 wait_for_manager_operation() {
     local timeout="${1:-${TIMEOUT}}"
     local label="${2:-operation}"
@@ -388,13 +413,14 @@ if [[ "${CANFAR_RAY_SKIP_PREFLIGHT:-}" == "1" ]]; then
 fi
 CLUSTER_ACCEPT="$(api_curl -o /dev/null -w '%{http_code}' -X POST "${MANAGER_URL}/api/v1/cluster/create?async=1" \
     -H 'Content-Type: application/json' \
-    -d "{\"name\":\"canfar-ray-test\",\"worker_count\":2,\"cores\":1,\"ram_gb\":4,\"min_joined\":2,\"partial_policy\":\"accept_partial\",\"require_preflight\":${PREFLIGHT_REQUIRED}}" || echo 000)"
+    -d "{\"name\":\"canfar-ray-test\",\"worker_count\":2,\"cores\":1,\"ram_gb\":4,\"min_joined\":2,\"partial_policy\":\"accept_partial\",\"require_preflight\":${PREFLIGHT_REQUIRED}}" 2>/dev/null || true)"
+CLUSTER_ACCEPT="${CLUSTER_ACCEPT:-000}"
 if [[ "${CLUSTER_ACCEPT}" != "202" ]]; then
     echo "Cluster create async start failed (HTTP ${CLUSTER_ACCEPT})." >&2
     CLUSTER_JSON="$(api_curl "${MANAGER_URL}/api/v1/status" 2>/dev/null || true)"
     FAILURES=$((FAILURES + 1))
 else
-    echo "Cluster create accepted (202); polling status..."
+    echo "Cluster create accepted (202); polling status..." >&2
     CLUSTER_JSON="$(wait_for_manager_operation "${TIMEOUT}" cluster-create || true)"
 fi
 echo "${CLUSTER_JSON}" | python3 -m json.tool || echo "${CLUSTER_JSON}"
@@ -406,8 +432,8 @@ sys.exit(0 if d.get('success') and d.get('joined_workers', 0) >= 2 else 1)
     echo "Two-worker cluster did not reach healthy state." >&2
     FAILURES=$((FAILURES + 1))
     dump_persisted_worker_logs "${CLUSTER_JSON}"
-    # Refresh from live status if cluster JSON lacked worker list.
     dump_persisted_worker_logs "$(api_curl "${MANAGER_URL}/api/v1/status" 2>/dev/null || true)"
+    dump_canfar_cli_worker_logs "${CLUSTER_JSON}"
 fi
 
 echo ""
