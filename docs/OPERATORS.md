@@ -51,12 +51,15 @@ Push still requires maintainer credentials (`docker login images.canfar.net`). O
 Build and push:
 
 ```bash
-make build-all
-make push/notebook TAG=26.06
-make push/webterm TAG=26.06
-make build-ray
-make push-ray TAG=26.06
+make build-all BUILD_TAG=26.06
+make push-all TAG=26.06 BUILD_TAG=26.06   # base + webterm + notebook + vscode + marimo (+ :latest each)
+make build-ray BUILD_TAG=26.06
+make push-ray TAG=26.06 BUILD_TAG=26.06
 ```
+
+`make push-all` includes **`push/base`** — each `push/<image>` publishes both `TAG` and **`latest`**.  
+Do **not** rely on `make push-ray` alone for `base` (Ray parent only).  
+`docker buildx bake --push` tags `base:${TAG}` only, not `latest`.
 
 Do **not** register `base` as a Science Portal session — it is the shared parent layer.
 

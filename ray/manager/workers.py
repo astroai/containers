@@ -10,6 +10,7 @@ from canfar_ops import CanfarOps
 from ray_cluster import count_live_nodes, ray_address, wait_for_node_count
 from settings import ManagerSettings, manager_pod_ip
 from state_store import StateStore, WorkerRecord, ClusterState
+from worker_logs import archive_session_logs
 
 
 @dataclass
@@ -116,9 +117,16 @@ def launch_worker(
     if status != "Running":
         worker.phase = "CANFAR Failed"
         worker.last_error = f"worker session status={status}"
-        logs = canfar.session_logs(launch.session_id)
+        archive_session_logs(
+            canfar=canfar,
+            store=store,
+            session_id=launch.session_id,
+            worker=worker,
+            state=state,
+        )
         store.upsert_worker(state, worker)
         store.log_event("worker_launch_failed", session_id=launch.session_id, status=status)
+        logs = canfar.session_logs(launch.session_id)
         return WorkerLaunchResult(worker=worker, logs_excerpt=_tail(logs))
 
     worker.phase = "Ray Joining"
@@ -133,6 +141,13 @@ def launch_worker(
     worker.phase = "Ray Healthy" if worker.ray_joined else "Ray Unhealthy"
     if not worker.ray_joined:
         worker.last_error = f"Ray nodes {final_count}, expected >={target_nodes}"
+        archive_session_logs(
+            canfar=canfar,
+            store=store,
+            session_id=launch.session_id,
+            worker=worker,
+            state=state,
+        )
     if worker.ray_joined:
         state.phase = "Running"
     store.upsert_worker(state, worker)
@@ -151,6 +166,17 @@ def destroy_worker(
     store: StateStore,
     session_id: str,
 ) -> dict[str, Any]:
+    state = store.load()
+    worker = None
+    if state:
+        worker = next((w for w in state.workers if w.session_id == session_id), None)
+    archive_session_logs(
+        canfar=canfar,
+        store=store,
+        session_id=session_id,
+        worker=worker,
+        state=state,
+    )
     ok = canfar.destroy(session_id)
     state = store.load()
     if state:

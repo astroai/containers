@@ -21,6 +21,7 @@ class PreflightReport:
     worker_to_manager: list[dict[str, str]]
     manager_to_worker: list[dict[str, str]]
     probe_session_id: str | None
+    probe_logs_path: str | None = None
     message: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -31,6 +32,7 @@ class PreflightReport:
             "worker_to_manager": self.worker_to_manager,
             "manager_to_worker": self.manager_to_worker,
             "probe_session_id": self.probe_session_id,
+            "probe_logs_path": self.probe_logs_path,
             "message": self.message,
         }
 
@@ -118,6 +120,7 @@ def run_preflight(
 
         logs = canfar.session_logs(probe_id)
         parsed = parse_probe_logs(logs)
+        probe_logs_path = store.save_worker_logs(probe_id, logs) if logs else None
         worker_ip = parsed.get("worker_ip")
         worker_checks = parsed.get("checks") or []
         probe_ok = parsed.get("result") == "PASS" and status in {
@@ -154,6 +157,7 @@ def run_preflight(
             worker_to_manager=worker_checks,
             manager_to_worker=mgr_checks,
             probe_session_id=probe_id,
+            probe_logs_path=probe_logs_path,
             message=message,
         )
         store.log_event("preflight_done", **report.as_dict())

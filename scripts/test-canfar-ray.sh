@@ -131,6 +131,32 @@ api_curl() {
     curl -fsS "${curl_auth[@]}" "$@"
 }
 
+dump_persisted_worker_logs() {
+    local status_json="${1:-}"
+    [[ -n "${status_json}" ]] || status_json="$(api_curl "${MANAGER_URL}/api/v1/status" 2>/dev/null || true)"
+    local session_ids
+    session_ids="$(printf '%s' "${status_json}" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except json.JSONDecodeError:
+    sys.exit(0)
+for w in data.get('workers') or []:
+    sid = w.get('session_id')
+    if sid:
+        print(sid)
+" 2>/dev/null || true)"
+    [[ -n "${session_ids}" ]] || return 0
+    echo ""
+    echo "Persisted worker logs (from manager /arc):"
+    while IFS= read -r sid; do
+        [[ -n "${sid}" ]] || continue
+        echo "--- ${sid} ---"
+        api_curl "${MANAGER_URL}/api/v1/workers/${sid}/logs?refresh=1" 2>/dev/null | tail -60 || \
+            echo "(no saved logs)"
+    done <<< "${session_ids}"
+}
+
 canfar_ps_field() {
     local match_key="$1" match_val="$2" want_field="$3"
     canfar ps -a --json 2>/dev/null | python3 -c "
@@ -316,6 +342,7 @@ sys.exit(0 if d.get('success') and d.get('joined_workers', 0) >= 2 else 1)
 "; then
     echo "Two-worker cluster did not reach healthy state." >&2
     FAILURES=$((FAILURES + 1))
+    dump_persisted_worker_logs "${CLUSTER_JSON}"
 fi
 
 echo ""

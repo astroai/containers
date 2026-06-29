@@ -12,6 +12,7 @@ from state_store import (
     TERMINAL_WORKER_PHASES,
     WorkerRecord,
 )
+from worker_logs import archive_session_logs, read_worker_logs
 
 
 def reconcile_cluster(
@@ -43,9 +44,17 @@ def reconcile_cluster(
             elif worker.canfar_status not in {None, "Unknown"}:
                 worker.phase = "Orphaned"
                 worker.last_error = "session not found in CANFAR"
-            logs = canfar.session_logs(worker.session_id)
-            if logs and not worker.worker_ip:
-                worker.worker_ip = parse_worker_ip_from_logs(logs)
+            archive_session_logs(
+                canfar=canfar,
+                store=store,
+                session_id=worker.session_id,
+                worker=worker,
+                state=state,
+            )
+            if not worker.worker_ip:
+                saved = read_worker_logs(store, worker.session_id)
+                if saved:
+                    worker.worker_ip = parse_worker_ip_from_logs(saved)
         if worker.worker_ip and worker.worker_ip in worker_ray_ips:
             worker.ray_joined = True
             worker.ray_node_id = ip_to_node.get(worker.worker_ip)

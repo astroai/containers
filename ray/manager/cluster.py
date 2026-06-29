@@ -18,6 +18,7 @@ from state_store import (
     WorkerRecord,
 )
 from workers import build_worker_env, destroy_all_workers, destroy_worker
+from worker_logs import archive_session_logs
 
 PartialPolicy = Literal["fail_and_cleanup", "accept_partial", "continue_waiting"]
 
@@ -207,6 +208,7 @@ def create_cluster(
 
     store.save(state)
     store.log_event("cluster_create_done", phase=state.phase, joined=joined, success=success)
+    _archive_worker_logs(canfar=canfar, store=store, state=state)
     return ClusterCreateResult(state=state, success=success, message=message)
 
 
@@ -224,6 +226,9 @@ def stop_cluster(
     state.phase = "Stopping"
     store.save(state)
     store.log_event("cluster_stop_start", force=force)
+
+    state = store.load() or state
+    _archive_worker_logs(canfar=canfar, store=store, state=state)
 
     destroy_all_workers(canfar=canfar, store=store)
     state = store.load() or state
@@ -304,6 +309,13 @@ def retry_worker(
     if status != "Running":
         replacement.phase = "CANFAR Failed"
         replacement.last_error = f"retry status={status}"
+        archive_session_logs(
+            canfar=canfar,
+            store=store,
+            session_id=launch.session_id,
+            worker=replacement,
+            state=state,
+        )
         store.upsert_worker(state, replacement)
         return replacement
 
@@ -352,3 +364,16 @@ def _pending_workers(state: ClusterState) -> list[WorkerRecord]:
         for w in state.workers
         if w.phase in {"Requested", "CANFAR Pending", "CANFAR Running", "Ray Joining"}
     ]
+
+
+def _archive_worker_logs(*, canfar: CanfarOps, store: StateStore, state: ClusterState | None) -> None:
+    if not state:
+        return
+    for worker in state.workers:
+        archive_session_logs(
+            canfar=canfar,
+            store=store,
+            session_id=worker.session_id,
+            worker=worker,
+            state=state,
+        )

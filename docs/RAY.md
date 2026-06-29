@@ -75,7 +75,7 @@ Partial-start policies:
 | `fail_and_cleanup` | Destroy workers and fail if minimum not met |
 | `continue_waiting` | Poll until timeout |
 
-State persists at `~/.canfar-ray/clusters/<cluster-id>/state.json`. On manager restart, **Reconcile state** (or automatic startup reconcile) refreshes CANFAR + Ray membership.
+State persists at `~/.canfar-ray/clusters/<cluster-id>/state.json`. Headless worker stdout/stderr is archived under `workers/<session-id>.log` in the same directory (survives CANFAR session deletion). Fetch via `GET /api/v1/workers/{session_id}/logs` or the **logs** link in the UI. On manager restart, **Reconcile state** (or automatic startup reconcile) refreshes CANFAR + Ray membership.
 
 ## Manager API
 

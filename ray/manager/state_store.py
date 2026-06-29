@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -43,6 +44,7 @@ class WorkerRecord:
     created_at: str = field(default_factory=_utc_now)
     updated_at: str = field(default_factory=_utc_now)
     last_error: str | None = None
+    logs_path: str | None = None
 
 
 @dataclass
@@ -72,6 +74,34 @@ class StateStore:
             os.chmod(self.dir, 0o700)
         except OSError:
             pass
+
+    def worker_logs_dir(self) -> Path:
+        return self.dir / "workers"
+
+    def worker_log_file(self, session_id: str) -> Path:
+        safe_id = re.sub(r"[^a-zA-Z0-9_-]", "_", session_id)
+        return self.worker_logs_dir() / f"{safe_id}.log"
+
+    def save_worker_logs(self, session_id: str, text: str) -> str:
+        """Write session stdout/stderr; return path relative to cluster dir."""
+        self.ensure_dir()
+        self.worker_logs_dir().mkdir(parents=True, exist_ok=True)
+        path = self.worker_log_file(session_id)
+        fd, tmp = tempfile.mkstemp(prefix="worker-logs-", dir=self.worker_logs_dir())
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(text)
+                if not text.endswith("\n"):
+                    fh.write("\n")
+            os.replace(tmp, path)
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+        return str(path.relative_to(self.dir))
 
     def log_event(self, event: str, **payload: Any) -> None:
         self.ensure_dir()

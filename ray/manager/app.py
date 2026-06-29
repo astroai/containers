@@ -8,8 +8,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from canfar_ops import CanfarOps
@@ -27,6 +27,7 @@ from settings import ManagerSettings, manager_pod_ip
 from state_store import StateStore
 from ui import PAGE_STYLE, flash_html, redirect_with_flash
 from workers import destroy_all_workers, destroy_worker, launch_worker
+from worker_logs import archive_session_logs, read_worker_logs
 
 app = FastAPI(title="CANFAR Ray Manager")
 
@@ -203,6 +204,24 @@ def api_workers_retry(session_id: str) -> JSONResponse:
     return JSONResponse({"worker": asdict(worker)}, status_code=code)
 
 
+@app.get("/api/v1/workers/{session_id}/logs")
+def api_worker_logs(session_id: str, refresh: bool = Query(default=False)) -> PlainTextResponse:
+    if refresh:
+        state = _store.load()
+        worker = next((w for w in state.workers if w.session_id == session_id), None) if state else None
+        archive_session_logs(
+            canfar=_canfar,
+            store=_store,
+            session_id=session_id,
+            worker=worker,
+            state=state,
+        )
+    text = read_worker_logs(_store, session_id)
+    if text is None:
+        raise HTTPException(status_code=404, detail="No saved logs for this worker session")
+    return PlainTextResponse(text)
+
+
 @app.delete("/api/v1/workers/{session_id}")
 def api_workers_destroy(session_id: str) -> JSONResponse:
     return JSONResponse(destroy_worker(canfar=_canfar, store=_store, session_id=session_id))
@@ -326,12 +345,17 @@ def index(request: Request) -> str:
                     f'action="/actions/retry-worker/{w.session_id}">'
                     f'<button type="submit">Retry</button></form>'
                 )
+            logs_link = ""
+            if w.logs_path or _store.worker_log_file(w.session_id).is_file():
+                logs_link = (
+                    f' <a href="/api/v1/workers/{w.session_id}/logs" target="_blank">logs</a>'
+                )
             rows.append(
                 f"<tr><td>{w.name}</td><td><code>{w.session_id}</code></td>"
                 f"<td>{w.phase}</td><td>{w.canfar_status or '—'}</td>"
                 f"<td>{w.worker_ip or '—'}</td>"
                 f"<td>{'yes' if w.ray_joined else 'no'}</td>"
-                f"<td>{w.last_error or ''} {retry}</td></tr>"
+                f"<td>{w.last_error or ''}{logs_link} {retry}</td></tr>"
             )
         workers_html = (
             "<table><tr><th>Name</th><th>Session</th><th>Phase</th><th>CANFAR</th>"
