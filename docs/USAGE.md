@@ -315,7 +315,7 @@ canfar-lab save myproject --to /arc/projects/mygroup/env-saves/myproject
 Teammates can discover and use them:
 
 ```bash
-canfar-lab saves --team
+canfar-lab saves --json
 canfar-lab resume myproject --from /arc/projects/mygroup/env-saves/myproject
 ```
 
@@ -447,14 +447,14 @@ git init && git add -A && git commit -m "start"
 gh repo create mylab --private --source=. --push
 ```
 
-`canfar-lab init` also supports `--uv`, `--no-git`, `--no-gh`, and `--astro`.
+`canfar-lab init` also supports `--uv`, `--no-git`, and `--no-gh`.
 
 ### Closing a session
 
 ```bash
 canfar-lab push           # git push + env save + summary
 canfar-lab push --name my-experiment
-canfar-lab --yes push   # non-interactive (used by the exit hook)
+canfar-lab push --yes     # non-interactive (also: canfar-lab --yes push)
 ```
 
 ### GPU workflow
@@ -493,15 +493,17 @@ gh run list --limit 5             # recent CI runs
 |---------|-------------|
 | `canfar-lab guide` | Full command list (this doc is the long form) |
 | `canfar-lab status` | Quotas, home/project space, **`canfar auth show`**, **`canfar ps`**, top processes |
-| `canfar-lab init [name]` | New project under `TMP_SRC_DIR` (`--uv`, `--no-git`, `--no-gh`, `--astro`) |
+| `canfar-lab init [name]` | New project under `TMP_SRC_DIR` (`--uv`, `--no-git`, `--no-gh`) |
 | `canfar-lab clone <owner/repo> [dir]` | Clone + install deps (`--from-env`, `--from`) |
 | `canfar-lab save [name]` | Save lockfiles + manifest (~KB) (`--full`, `--to`) |
 | `canfar-lab resume <name>` | Restore + rebuild env (`--from`, `[path]`) |
-| `canfar-lab saves` | List saves (`--team`, `--all`) |
+| `canfar-lab saves` | List saves (`--json`) |
 | `canfar-lab workspace save [name]` | Freeze full project tree for offline batch (`--with-cache`, `--to`) |
 | `canfar-lab workspace restore <name>` | Restore frozen workspace — no network (`--from`, `--to`) |
-| `canfar-lab kernel register` | Register project as Jupyter kernel (`--list`, `--unregister`, `--name`) |
-| `canfar-lab push` | Git push + env save before closing (`--name`, `--force`) |
+| `canfar-lab kernel register [path]` | Register project as Jupyter kernel (`--name`) |
+| `canfar-lab kernel list` | List registered kernels (`--json`) |
+| `canfar-lab kernel unregister <name>` | Remove a registered kernel |
+| `canfar-lab push` | Git push + env save before closing (`--name`, `--yes`) |
 | `canfar-lab project init <name>` | Team workspace on `/arc/projects` (`--members`) |
 | `canfar-lab data stage <src> [dst]` | Copy persistent → scratch |
 | `canfar-lab data sync <src> <dst>` | Copy scratch → persistent |
@@ -509,7 +511,7 @@ gh run list --limit 5             # recent CI runs
 | `canfar-lab clean cache` | Clear scratch download caches (`--all-safe`, `--pip`, `--uv`, `--npm`, `--pixi`, `--conda`, `--hf`) |
 | `canfar-lab agent install <tool>` | Install AI tools to `$CANFAR_LAB_BIN_DIR` (`--list`) |
 | `canfar-lab agent models free` | Apply free-tier model presets (OpenRouter + Kilo) |
-| `canfar-lab doctor` | Session paths, tool availability, **`canfar auth show`** (`--json`, `--stdout`, `--file`) |
+| `canfar-lab doctor` | Session paths, tool availability, **`canfar auth show`** (`--json`) |
 
 Most `astroai-*` commands support `-h` (short summary on stderr, exit 1) and
 `--help` (detailed help on stdout, exit 0). `canfar-lab guide` prints this index.
@@ -895,8 +897,8 @@ Then pick **Python (myproject · pixi)** in the kernel menu.
 | `canfar-lab kernel register` | Register cwd project (adds `ipykernel` if missing) |
 | `canfar-lab kernel register "${TMP_SRC_DIR}/other"` | Register a specific path |
 | `canfar-lab kernel register --name mylab` | Override kernel display name |
-| `canfar-lab kernel register --list` | List registered kernels |
-| `canfar-lab kernel register --unregister` | Remove kernel for this project |
+| `canfar-lab kernel list` | List registered kernels |
+| `canfar-lab kernel unregister mylab` | Remove a registered kernel |
 
 Kernelspecs persist on `/arc`. The env binaries live on `TMP_SRC_DIR` —
 **re-run `canfar-lab kernel register` after each `canfar-lab resume`**.
@@ -933,29 +935,25 @@ Run `canfar-lab doctor` to see resolved values.
 
 ## Diagnostics
 
-When something isn't working, `canfar-lab doctor` produces a comprehensive snapshot:
+When something isn't working, `canfar-lab doctor` prints session paths, cache
+locations, tool availability, and **`canfar auth show`** when the `canfar` CLI
+is on PATH:
 
 ```bash
-canfar-lab doctor                     # save to ~/.canfar/lab/debug-<timestamp>.log + print
-canfar-lab doctor --stdout            # print only
-canfar-lab doctor --file /path/out    # save to custom path
+canfar-lab doctor
+canfar-lab doctor --json | jq .
+canfar-lab --json doctor
 ```
 
-| Section | What it shows |
-|---------|---------------|
-| Session | Home, `TMP_SRC_DIR`, `TMP_SCRATCH_DIR`, tmp, shell, uptime |
-| Profile | `CANFAR_LAB_PROFILE_LOADED`, PATH, uv/pixi/cache dirs (via `canfar-lab env export`) |
-| GPU | nvidia-smi summary and processes (or CPU node notice) |
-| Disk | `TMP_SRC_DIR`, `TMP_SCRATCH_DIR`, and HOME `df`, top dirs |
-| Tools | Version check for git, gh, uv, pixi, jq, rg, fd, bat, and more |
-| CANFAR | `canfar auth show` when logged in (or “Not authenticated”) |
-| Project | Pixi/uv detection, lockfile size, env size |
-| Network | Reachability check for pypi.org, github.com, conda |
-| Environment | Key env vars (sanitized — tokens and keys hidden) |
-| Processes | Top 10 by CPU |
-| CVMFS | `/cvmfs/soft.computecanada.ca` status |
+For quotas, home breakdown, **`canfar ps`**, and top processes, use
+**`canfar-lab status`** (`canfar-lab status --json` for scripts).
 
-Share the log: `cat ~/.canfar/lab/debug-<timestamp>.log`
+| Field / section | What it shows |
+|-----------------|---------------|
+| Paths | `work_dir`, `scratch_dir`, `save_dir`, caches, `user_bin`, `runtime_root` |
+| Tools | Whether `git`, `gh`, `pixi`, `uv`, `canfar`, `rsync`, `jupyter`, … are on PATH |
+| CANFAR | Output of `canfar auth show` when authenticated |
+| Quota | Home directory usage percentage |
 
 ---
 

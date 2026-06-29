@@ -224,51 +224,45 @@ Verify checks include CADC/CANFAR CLIs (`canfar`, `cadcget`, `cadc-tap`, `vcp`) 
 
 ## Diagnostic tool (`canfar-lab doctor`)
 
-Every session image includes `canfar-lab doctor`, a comprehensive diagnostic tool that produces a timestamped snapshot of the container's runtime state. Operators can use it to inspect live containers, triage user issues, or gather fleet-wide health data.
+Every session image includes `canfar-lab doctor`, which prints resolved session
+paths, cache locations, tool availability on PATH, home quota usage, and
+**`canfar auth show`** when the `canfar` CLI is installed.
 
 ### What it covers
 
-The report has 10 sections:
+| Field / section | Details for operators |
+|-----------------|----------------------|
+| Paths | `work_dir`, `scratch_dir`, `save_dir`, `user_bin`, `runtime_root`, pixi/uv cache dirs |
+| Tools | Whether `git`, `gh`, `pixi`, `uv`, `canfar`, `rsync`, `jupyter`, … are on PATH |
+| CANFAR | `canfar auth show` when logged in (JSON key: `canfar_auth` on `canfar-lab doctor --json`) |
+| Quota | Home directory usage percentage |
 
-| Section | Details for operators |
-|---------|----------------------|
-| Session | Home, **`TMP_SRC_DIR`**, **`TMP_SCRATCH_DIR`**, TMPDIR, shell PID, system uptime |
-| Profile | `CANFAR_LAB_PROFILE_LOADED` guard, image PATH, session env via canfar-lab |
-| GPU | `nvidia-smi` query (GPU index, driver, VRAM, temp, utilization) + GPU process listing |
-| Disk | **`TMP_SRC_DIR`**, **`TMP_SCRATCH_DIR`**, and HOME `df`, top directories by size |
-| Tools | Version check for pre-installed dev, file, and CADC tools (includes `canfar`) |
-| CANFAR | `canfar auth show` when the `canfar` CLI is on PATH (JSON: `canfar_auth` on `canfar-lab doctor --json`) |
-| Project | Pixi/uv project detection, lockfile size, `.pixi`/`.venv` directory size |
-| Network | HTTPS reachability to pypi.org, github.com, conda.anaconda.org, files.pythonhosted.org |
-| Environment | Key env vars (PATH, HOME, XDG, UV, PIXI, CUDA, etc.) with tokens/keys redacted |
-| Processes | Top 10 processes by CPU (pid, user, %cpu, %mem, command) |
-| CVMFS | `/cvmfs/soft.computecanada.ca` mount status with lazy-mount hint |
+For quotas, home breakdown, **`canfar ps`**, and top CPU processes, use
+**`canfar-lab status`** (`canfar-lab status --json` for scripts).
 
 ### Running inside a container
 
 ```bash
 # From the container shell (as the user)
-canfar-lab doctor                     # prints + saves to ~/.canfar/lab/debug-<timestamp>.log
-canfar-lab doctor --stdout            # print only (no file saved)
+canfar-lab doctor
+canfar-lab doctor --json
 
 # As an operator (inspect via docker exec or kubectl exec)
-docker exec <container> canfar-lab doctor --stdout
-kubectl exec <pod> -- canfar-lab doctor --stdout
+docker exec <container> canfar-lab doctor --json
+kubectl exec <pod> -- canfar-lab doctor --json
 ```
 
 ### Operator use cases
 
-**Triage user reports:** Ask the user to run `canfar-lab doctor` and share the log (`cat ~/.canfar/lab/debug-*.log`). The report answers the most common support questions in one file — are **`TMP_SRC_DIR`** / **`TMP_SCRATCH_DIR`** writable? Is the profile sourced? Are tools present? Is **`canfar auth show`** healthy? Is the network reachable?
+**Triage user reports:** Ask the user to run `canfar-lab doctor --json` (or
+`canfar-lab status --json`) and share the output. This confirms resolved paths,
+tool presence, and **`canfar auth show`** health.
 
-For a quick CANFAR platform view without the full doctor report, `canfar-lab status` also prints **`canfar auth show`** and **`canfar ps`** (machine-readable: `canfar-lab --json status`).
+For a quick CANFAR platform view, `canfar-lab status` also prints **`canfar auth show`** and **`canfar ps`**.
 
-**Fleet health:** Run `canfar-lab doctor --stdout` across all running containers to spot patterns — stale sessions with zero scratch usage, quota-pressure nodes, or CVMFS mount failures.
+**Fleet health:** Run `canfar-lab doctor --json` across running containers to spot missing tools or auth failures.
 
-**Image smoke test:** During image development, run `canfar-lab doctor --stdout` inside the test container after `test-local.sh` to confirm all pre-installed tools are present, the profile is sourced, and CVMFS is reachable.
-
-### Log location
-
-By default, reports save to `~/.canfar/lab/debug-<YYYYMMDDTHHMMSSZ>.log` on `/arc` (persists across sessions). The `--file` flag saves to a custom path.
+**Image smoke test:** During image development, run `canfar-lab doctor` inside the test container after `test-local.sh` to confirm pre-installed tools are on PATH.
 
 ## AI coding tools (`canfar-lab agent install`)
 
