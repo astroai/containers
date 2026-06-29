@@ -32,9 +32,15 @@ installed="$("${PYTHON_BIN}" -c 'import ray; print(ray.__version__)' 2>/dev/null
 [[ "${installed}" == "${RAY_VERSION_EXPECTED}" ]] \
     || die "Ray version mismatch: installed=${installed} expected=${RAY_VERSION_EXPECTED}"
 
-for mount in /arc /scratch; do
-    [[ -d "${mount}" && -w "${mount}" ]] || die "${mount} not writable"
-done
+[[ -d /scratch && -w /scratch ]] || die "/scratch not writable"
+
+if [[ -d /arc && -w /arc ]]; then
+    ARC_WRITABLE=1
+else
+    ARC_WRITABLE=0
+    echo "WARN: /arc not writable — headless session without shared ARC; heartbeat monitor disabled" >&2
+    export RAY_SKIP_HEARTBEAT=1
+fi
 
 mkdir -p "${RAY_SPILL_DIR}"
 
@@ -58,6 +64,9 @@ fi
 
 export RAY_spill_dir="${RAY_SPILL_DIR}"
 
+if [[ "${RAY_SKIP_HEARTBEAT:-}" == "1" ]]; then
+    echo "Skipping manager heartbeat monitor (/arc unavailable on this session)" >&2
+else
 (
     while true; do
         if [[ ! -f "${RAY_MANAGER_HEARTBEAT_PATH}" ]]; then
@@ -74,5 +83,6 @@ export RAY_spill_dir="${RAY_SPILL_DIR}"
 ) &
 watch_pid=$!
 trap 'kill ${watch_pid} 2>/dev/null || true' EXIT
+fi
 
 "${RAY_BIN}" start "${ray_args[@]}"
