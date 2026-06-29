@@ -356,6 +356,42 @@ canfar auth login              # Science Platform (recommended)
 cadc-get-cert -u $USER         # X509 cert for vos / cadcdata (netrc also works)
 ```
 
+### Upgrading platform tools (this session)
+
+The CADC venv at `/opt/astroai/venv/cadc` is **user-writable** for the lifetime
+of the session. Use it to bump `canfar-lab`, `canfar`, or archive clients
+without PATH overrides or a new image — changes are **lost when the session
+ends** (operators still ship fleet updates via new image tags).
+
+```bash
+upgrade-cadc-tools.sh list
+upgrade-cadc-tools.sh --upgrade canfar-lab
+upgrade-cadc-tools.sh 'canfar-lab @ git+https://github.com/sfabbro/canfar-lab.git@main'
+upgrade-cadc-tools.sh --upgrade canfar cadcdata cadctap vos
+canfar-lab --version
+```
+
+Build-time package list: `/opt/astroai/cadc-tools.txt` (unpinned; uv resolves at image build).
+
+### Platform tools vs pixi / uv / pip
+
+| Layer | Where | User-writable? | How to upgrade |
+|-------|-------|----------------|----------------|
+| **CADC/CANFAR clients** | `/opt/astroai/venv/cadc` | Yes (this session) | `upgrade-cadc-tools.sh` above |
+| **canfar-lab** | same venv | Yes (this session) | same |
+| **uv, pixi, micromamba** | `/usr/local/bin` | No (image install) | New image tag, or re-run upstream installers |
+| **Project Python deps** | pixi/uv env under `TMP_SRC_DIR` | Yes | `pixi add` / `uv add` in your project |
+| **Download caches, uv tools, agent CLIs** | scratch (`CANFAR_LAB_*` dirs) | Yes | `canfar-lab agent install`, `uv tool install`, caches on `/scratch` |
+
+Session login (`canfar-lab env export` via `/etc/canfar-lab/profile.sh`) moves
+**uv/pixi caches and runtime dirs** off `/usr/local/share` onto `/scratch` when
+mounted — so heavy I/O does not fill `/arc/home`. That is separate from upgrading
+the **uv/pixi binaries** themselves, which stay at the versions baked into the
+image unless you reinstall them deliberately.
+
+For **`import cadcdata`** in project code, still prefer **`pixi add cadcdata`**
+so your lockfile pins versions; the platform venv is for CLI convenience on PATH.
+
 ### Examples
 
 ```bash

@@ -5,6 +5,22 @@ from __future__ import annotations
 import os
 import socket
 from dataclasses import dataclass
+from pathlib import Path
+
+
+def _default_ray_version() -> str:
+    explicit = os.environ.get("RAY_VERSION_EXPECTED", "").strip()
+    if explicit:
+        return explicit
+    stamp = Path("/opt/astroai/ray-version.txt")
+    if stamp.is_file():
+        return stamp.read_text(encoding="utf-8").strip()
+    try:
+        import ray
+
+        return ray.__version__
+    except Exception:
+        return "unknown"
 
 
 @dataclass(frozen=True)
@@ -27,7 +43,7 @@ class ManagerSettings:
         default_worker = f"{registry}/{owner}/ray-worker:{tag}"
         return cls(
             cluster_id=os.environ.get("RAY_CLUSTER_ID", "default"),
-            ray_version=os.environ.get("RAY_VERSION_EXPECTED", "2.43.0"),
+            ray_version=_default_ray_version(),
             ray_head_port=int(os.environ.get("RAY_HEAD_PORT", "6379")),
             worker_image=os.environ.get("RAY_WORKER_IMAGE", default_worker),
             probe_image=os.environ.get("RAY_PROBE_IMAGE", default_worker),

@@ -1,7 +1,7 @@
-# Platform CADC/CANFAR Python clients (installed to /opt/astroai/venv/cadc at build time).
-# Pin versions for reproducible builds; bump intentionally when upgrading.
-cadcdata==2.5.2
-cadctap==0.10.1
-vos==3.6.4
-canfar==1.4.1
+# Platform CADC/CANFAR Python clients (/opt/astroai/venv/cadc).
+# Unpinned — uv resolves at image build; upgrade in-session via upgrade-cadc-tools.sh.
+cadcdata
+cadctap
+vos
+canfar
 # canfar-lab installed from vendor wheel in Dockerfile (same venv).

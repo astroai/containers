@@ -15,6 +15,8 @@ FAILURES=0
 
 MGR="${REGISTRY}/${OWNER}/ray-manager:${TAG}"
 WRK="${REGISTRY}/${OWNER}/ray-worker:${TAG}"
+RAY_VERSION_EXPECTED="$(docker run --rm --entrypoint /opt/astroai/venv/ray/bin/python "${WRK}" \
+    -c 'import ray; print(ray.__version__)')"
 
 cleanup() {
     kill "${HEARTBEAT_PID:-}" 2>/dev/null || true
@@ -39,7 +41,7 @@ docker run -d --name "ray-mgr-${CLUSTER_ID}" \
     --network "${NETWORK}" --shm-size=1g \
     -u "$(id -u):$(id -g)" \
     -e HOME="${HOME}" -e USER=testuser \
-    -e RAY_CLUSTER_ID="${CLUSTER_ID}" -e RAY_VERSION_EXPECTED=2.43.0 \
+    -e RAY_CLUSTER_ID="${CLUSTER_ID}" -e RAY_VERSION_EXPECTED="${RAY_VERSION_EXPECTED}" \
     -v "${FAKE_ARC}:/arc" -v "${FAKE_SCRATCH}:/scratch" \
     "${MGR}" >/dev/null
 
@@ -61,7 +63,7 @@ docker run -d --name "ray-wrk-${CLUSTER_ID}-1" \
     -e HOME="${HOME}" -e USER=testuser \
     -e RAY_CLUSTER_ID="${CLUSTER_ID}" \
     -e RAY_HEAD_IP="${HEAD_IP}" -e RAY_HEAD_PORT=6379 \
-    -e RAY_VERSION_EXPECTED=2.43.0 \
+    -e RAY_VERSION_EXPECTED="${RAY_VERSION_EXPECTED}" \
     -e RAY_WORKER_CPUS=1 -e RAY_WORKER_GPUS=0 \
     -e RAY_SPILL_DIR="/scratch/ray/${CLUSTER_ID}/w1" \
     -e RAY_MANAGER_HEARTBEAT_PATH="${HEARTBEAT}" \

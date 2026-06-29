@@ -1,15 +1,10 @@
 # syntax=docker/dockerfile:1
 # AstroAI Python foundation: Debian slim + uv + pixi (system-wide paths).
-# uv/pixi: official install scripts (latest at build time), not pinned GHCR tags.
+# uv/pixi: official install scripts (latest at build time).
 
 ARG PYTHON_VERSION=3.13
-ARG UV_VERSION=0.11.25
-ARG PIXI_VERSION=0.71.1
 
 FROM python:${PYTHON_VERSION}-slim
-
-ARG UV_VERSION
-ARG PIXI_VERSION
 
 LABEL org.opencontainers.image.title="AstroAI Python Runtime" \
       org.opencontainers.image.vendor="AstroAI"
@@ -38,10 +33,10 @@ ENV MAMBA_ROOT_PREFIX=/usr/local/share/micromamba \
 # ^ build-time paths only. Session users: canfar-lab env export sets MAMBA_ROOT_PREFIX
 # and MAMBA_PKGS_DIRS under scratch when /scratch is mounted.
 
-RUN curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh \
-    | env UV_VERSION="${UV_VERSION}" UV_UNMANAGED_INSTALL=/usr/local/bin sh \
+RUN curl -LsSf https://astral.sh/uv/install.sh \
+    | env UV_UNMANAGED_INSTALL=/usr/local/bin sh \
     && curl -fsSL https://pixi.sh/install.sh \
-    | env PIXI_VERSION="${PIXI_VERSION}" PIXI_HOME=/usr/local/share/pixi PIXI_BIN_DIR=/usr/local/bin bash \
+    | env PIXI_HOME=/usr/local/share/pixi PIXI_BIN_DIR=/usr/local/bin bash \
     && ARCH="$(uname -m)" \
     && case "${ARCH}" in \
         x86_64) MAMBA_ARCH=linux-64 ;; \

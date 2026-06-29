@@ -12,6 +12,8 @@ FAKE_SCRATCH="$(mktemp -d)"
 FAILURES=0
 
 MGR="${REGISTRY}/${OWNER}/ray-manager:${TAG}"
+RAY_VERSION_EXPECTED="$(docker run --rm --entrypoint /opt/astroai/venv/ray/bin/python "${MGR}" \
+    -c 'import ray; print(ray.__version__)')"
 
 cleanup() {
     docker rm -f ray-ui-test 2>/dev/null || true
@@ -28,7 +30,7 @@ docker run -d --name ray-ui-test \
     --network "${NETWORK}" --shm-size=1g \
     -u "$(id -u):$(id -g)" \
     -e HOME=/arc/home/testuser -e USER=testuser \
-    -e RAY_CLUSTER_ID=ui-test -e RAY_VERSION_EXPECTED=2.43.0 \
+    -e RAY_CLUSTER_ID=ui-test -e RAY_VERSION_EXPECTED="${RAY_VERSION_EXPECTED}" \
     -v "${FAKE_ARC}:/arc" -v "${FAKE_SCRATCH}:/scratch" \
     "${MGR}" >/dev/null
 

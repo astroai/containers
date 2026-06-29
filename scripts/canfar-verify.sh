@@ -46,6 +46,8 @@ check "login shell: vcp" login_shell 'command -v vcp >/dev/null'
 check "login shell: cadc-get-cert" login_shell 'command -v cadc-get-cert >/dev/null'
 check "login shell: canfar-lab" login_shell 'command -v canfar-lab >/dev/null'
 check "canfar-lab doctor" login_shell 'canfar-lab doctor >/dev/null 2>&1'
+check "CADC venv writable" test -w /opt/astroai/venv/cadc
+check "upgrade-cadc-tools helper" test -x /opt/astroai/bin/upgrade-cadc-tools.sh
 check "CANFAR_LAB_BIN_DIR set" login_shell '[[ -n "${CANFAR_LAB_BIN_DIR:-}" ]]'
 check "canfar-lab agent bundle" login_shell 'canfar-lab agent install --list >/dev/null'
 

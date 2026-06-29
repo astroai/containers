@@ -87,7 +87,10 @@ if [[ ! -f "${_state}/welcomed" ]]; then
   AI coding agents (once per user, persists on scratch or team project):
     canfar-lab agent setup              MCP + skills — run this first
     canfar-lab agent install agent      or claude, goose, opencode, codex
-    canfar-lab agent update             refresh after image upgrade
+    canfar-lab agent update             refresh skills/rules after image upgrade
+
+  Platform CLIs (canfar, canfar-lab, cadcget — /opt/astroai/venv/cadc):
+    upgrade-cadc-tools.sh list          see versions; --upgrade canfar-lab to bump this session
 WELCOME
         if [[ "${ASTROAI_SESSION_KIND:-}" == "webterm" ]]; then
             cat <<'WEBTERM'

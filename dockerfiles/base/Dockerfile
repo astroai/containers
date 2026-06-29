@@ -112,7 +112,7 @@ RUN uv venv /opt/astroai/venv/cadc \
     && uv pip install --python /opt/astroai/venv/cadc /tmp/canfar_lab-0.1.0-py3-none-any.whl \
     && bash /tmp/patch-clint-py313.sh /opt/astroai/venv/cadc \
     && rm /tmp/patch-clint-py313.sh /tmp/canfar_lab-0.1.0-py3-none-any.whl \
-    && chmod -R a+rX /opt/astroai/venv/cadc \
+    && chmod -R a+rwX /opt/astroai/venv/cadc \
     && /opt/astroai/venv/cadc/bin/canfar-lab env install-shell /etc/canfar-lab \
     && test -f /etc/canfar-lab/profile.sh \
     && test -f /etc/canfar-lab/hooks.sh \
@@ -120,7 +120,7 @@ RUN uv venv /opt/astroai/venv/cadc \
        /opt/astroai/venv/cadc/bin/canfar-lab env export --no-ensure >/dev/null
 
 COPY scripts/lib/astroai-env-common.sh scripts/lib/astroai-ui.sh scripts/lib/astroai-load.sh scripts/lib/skaha-proxy.sh /opt/astroai/lib/
-COPY scripts/canfar-verify.sh scripts/canfar-verify-agents.sh scripts/bootstrap-canfar-registry.sh /opt/astroai/bin/
+COPY scripts/canfar-verify.sh scripts/canfar-verify-agents.sh scripts/bootstrap-canfar-registry.sh scripts/upgrade-cadc-tools.sh /opt/astroai/bin/
 RUN chmod a+rx /opt/astroai/bin/* /opt/astroai/lib/*
 
 COPY docs/USAGE.md /opt/astroai/USAGE.md

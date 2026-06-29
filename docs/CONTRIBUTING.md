@@ -54,7 +54,7 @@ git checkout -b my-change
 | System packages, `gh`, monitoring CLIs | `dockerfiles/base/Dockerfile` | Yes — `base` + downstream |
 | Python / uv / pixi foundation | `dockerfiles/python/Dockerfile` | Yes — full stack |
 | Jupyter config | `config/jupyter_server_config.py` | Yes — `notebook` |
-| CADC client pins | `config/cadc-tools.txt` | Yes — `base` and downstream |
+| CADC client packages | `config/cadc-tools.txt` | Yes — `base` and downstream (unpinned) |
 | **`canfar-lab` CLI** | Vendored wheel in `vendor/canfar_lab-0.1.0-py3-none-any.whl` | Yes — `base` and downstream |
 | Ray deps / manager / worker | `config/ray-deps.txt`, `dockerfiles/ray-*`, `ray/`, `scripts/*ray*` | Yes — `make build-ray` |
 | VS Code UI defaults | `config/openvscode-settings.json` | Yes — `vscode` |
@@ -101,6 +101,15 @@ make test-local BUILD_TAG=local
 ```
 
 Commit the updated wheel with any doc changes in this repo.
+
+## Writable CADC venv (in-session upgrades)
+
+`/opt/astroai/venv/cadc` is `a+rwX` so session users can run
+`upgrade-cadc-tools.sh` or `uv pip install --python /opt/astroai/venv/cadc …`
+for `canfar-lab`, `canfar`, and CADC clients. Changes are session-local only.
+**uv/pixi/micromamba** under `/usr/local` are installed from upstream at image
+build time (unpinned). Project deps use pixi/uv under `TMP_SRC_DIR`; caches and
+agent CLIs use scratch via canfar-lab.
 
 ## Ray and canfar-lab tests
 
