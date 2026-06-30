@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from canfar_ops import CanfarOps
-from ray_cluster import live_worker_node_ips, node_ip_to_id, parse_worker_ip_from_logs, ray_address
+from ray_cluster import list_ray_nodes, live_worker_node_ips, node_ip_to_id, parse_worker_ip_from_logs, ray_address
 from settings import manager_pod_ip
 from state_store import (
     ACTIVE_CLUSTER_PHASES,
@@ -31,10 +31,12 @@ def reconcile_cluster(
         pf_ip = str(state.preflight.get("manager_ip") or "")
         if pf_ip and pf_ip != state.manager_ip:
             state.preflight = None
-    ray_ips = live_worker_node_ips()
+
+    nodes = list_ray_nodes()
+    ray_ips = live_worker_node_ips(nodes=nodes)
     head_ip = manager_pod_ip()
     worker_ray_ips = {ip for ip in ray_ips if ip != head_ip}
-    ip_to_node = node_ip_to_id()
+    ip_to_node = node_ip_to_id(nodes=nodes)
     auth = canfar.auth_status()
 
     for worker in state.workers:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from typing import Any
@@ -49,8 +50,6 @@ print(json.dumps(ray.nodes()))
             timeout=30,
             env=env,
         )
-        import json
-
         return json.loads(out.stdout.strip() or "[]")
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError):
         return []
@@ -65,9 +64,10 @@ def parse_worker_ip_from_logs(logs: str) -> str | None:
     return None
 
 
-def live_worker_node_ips() -> set[str]:
+def live_worker_node_ips(nodes: list[dict[str, Any]] | None = None) -> set[str]:
     ips: set[str] = set()
-    for node in list_ray_nodes():
+    nodes = nodes if nodes is not None else list_ray_nodes()
+    for node in nodes:
         if not node.get("Alive"):
             continue
         addr = str(node.get("NodeManagerAddress") or "")
@@ -76,9 +76,10 @@ def live_worker_node_ips() -> set[str]:
     return ips
 
 
-def node_ip_to_id() -> dict[str, str]:
+def node_ip_to_id(nodes: list[dict[str, Any]] | None = None) -> dict[str, str]:
     mapping: dict[str, str] = {}
-    for node in list_ray_nodes():
+    nodes = nodes if nodes is not None else list_ray_nodes()
+    for node in nodes:
         if not node.get("Alive"):
             continue
         addr = str(node.get("NodeManagerAddress") or "")
@@ -88,8 +89,8 @@ def node_ip_to_id() -> dict[str, str]:
     return mapping
 
 
-def count_live_nodes() -> int:
-    nodes = list_ray_nodes()
+def count_live_nodes(nodes: list[dict[str, Any]] | None = None) -> int:
+    nodes = nodes if nodes is not None else list_ray_nodes()
     return sum(1 for node in nodes if node.get("Alive"))
 
 
@@ -102,7 +103,7 @@ def wait_for_node_count(
     import time
 
     deadline = time.monotonic() + timeout_seconds
-    count = count_live_nodes()
+    count = 0
     while time.monotonic() < deadline:
         count = count_live_nodes()
         if count >= minimum:
