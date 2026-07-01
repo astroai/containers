@@ -106,14 +106,16 @@ def api_auth_status() -> JSONResponse:
 @app.get("/api/v1/status")
 def api_status() -> JSONResponse:
     _touch_heartbeat()
-    state = reconcile_cluster(canfar=_canfar, store=_store)
-    return JSONResponse(_cluster_payload(state))
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
+    return JSONResponse(_cluster_payload(state, nodes=nodes))
 
 
 @app.post("/api/v1/cluster/reconcile")
 def api_cluster_reconcile() -> JSONResponse:
-    state = reconcile_cluster(canfar=_canfar, store=_store)
-    return JSONResponse(_cluster_payload(state))
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
+    return JSONResponse(_cluster_payload(state, nodes=nodes))
 
 
 def _cluster_create_request(body: ClusterCreateBody) -> ClusterCreateRequest:
@@ -148,7 +150,8 @@ def api_preflight_run(async_mode: bool = Query(default=False, alias="async")) ->
             raise HTTPException(status_code=409, detail=f"Operation in progress: {op.kind}")
         if not start_background("preflight", lambda: run_preflight(_settings, _canfar, _store)):
             raise HTTPException(status_code=409, detail="Operation already in progress")
-        payload = _cluster_payload(_store.load())
+        nodes = list_ray_nodes()
+        payload = _cluster_payload(_store.load(), nodes=nodes)
         payload["accepted"] = True
         return JSONResponse(payload, status_code=202)
 
@@ -175,7 +178,8 @@ def api_cluster_create(
             raise HTTPException(status_code=409, detail=f"Operation in progress: {op.kind}")
         if not start_background("cluster_create", lambda: _start_cluster_create(req)):
             raise HTTPException(status_code=409, detail="Operation already in progress")
-        payload = _cluster_payload(_store.load())
+        nodes = list_ray_nodes()
+        payload = _cluster_payload(_store.load(), nodes=nodes)
         payload["accepted"] = True
         return JSONResponse(payload, status_code=202)
 
@@ -190,7 +194,8 @@ def api_cluster_create(
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    payload = _cluster_payload(result.state)
+    nodes = list_ray_nodes()
+    payload = _cluster_payload(result.state, nodes=nodes)
     payload["success"] = result.success
     payload["message"] = result.message
     code = 200 if result.success else 503
@@ -200,7 +205,8 @@ def api_cluster_create(
 @app.post("/api/v1/cluster/stop")
 def api_cluster_stop() -> JSONResponse:
     state = stop_cluster(canfar=_canfar, store=_store)
-    return JSONResponse(_cluster_payload(state))
+    nodes = list_ray_nodes()
+    return JSONResponse(_cluster_payload(state, nodes=nodes))
 
 
 @app.post("/api/v1/cluster/clean-orphans")
@@ -280,7 +286,8 @@ def api_workers_destroy_all() -> JSONResponse:
 
 @app.get("/api/v1/ray/nodes")
 def api_ray_nodes() -> JSONResponse:
-    return JSONResponse({"nodes": list_ray_nodes(), "alive": count_live_nodes()})
+    nodes = list_ray_nodes()
+    return JSONResponse({"nodes": nodes, "alive": count_live_nodes(nodes)})
 
 
 @app.post("/actions/preflight")
@@ -392,7 +399,8 @@ def action_retry_worker(session_id: str) -> RedirectResponse:
 def index(request: Request) -> str:
     _touch_heartbeat()
     auth = _canfar.auth_status()
-    state = reconcile_cluster(canfar=_canfar, store=_store)
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
     preflight = (state.preflight if state else None) or {}
     flash = request.query_params.get("flash")
     flash_msg = request.query_params.get("msg")
@@ -456,7 +464,7 @@ def index(request: Request) -> str:
   <p>Cluster phase: <strong>{cluster_phase}</strong> · workers joined: {joined}/{target or '—'}</p>
   <p>CANFAR auth: {auth_line}</p>
   <p>Network preflight: {pf_line}</p>
-  <p>Live Ray nodes: {count_live_nodes()}</p>
+  <p>Live Ray nodes: {count_live_nodes(nodes)}</p>
   <h2>Create cluster</h2>
   <form method="post" action="/actions/create-cluster">
     <div class="grid">
@@ -488,7 +496,7 @@ def index(request: Request) -> str:
 </body></html>"""
 
 
-def _cluster_payload(state: Any) -> dict[str, Any]:
+def _cluster_payload(state: Any, nodes: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     op = active_operation()
     payload = {
         "ray_address": ray_address(),
@@ -497,7 +505,7 @@ def _cluster_payload(state: Any) -> dict[str, Any]:
         "cluster_id": _settings.cluster_id,
         "heartbeat_path": str(_heartbeat_path()),
         "ray_running": ray_running(),
-        "ray_nodes_alive": count_live_nodes(),
+        "ray_nodes_alive": count_live_nodes(nodes),
         "worker_image": _settings.worker_image,
         "cluster": asdict(state) if state else None,
         "preflight": state.preflight if state else None,
