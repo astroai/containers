@@ -15,11 +15,14 @@ from state_store import (
 from worker_logs import archive_session_logs, read_worker_logs
 
 
+from typing import Any
+
 def reconcile_cluster(
     *,
     canfar: CanfarOps,
     store: StateStore,
     state: ClusterState | None = None,
+    nodes: list[dict[str, Any]] | None = None,
 ) -> ClusterState | None:
     state = state or store.load()
     if not state:
@@ -31,10 +34,14 @@ def reconcile_cluster(
         pf_ip = str(state.preflight.get("manager_ip") or "")
         if pf_ip and pf_ip != state.manager_ip:
             state.preflight = None
-    ray_ips = live_worker_node_ips()
+
+    from ray_cluster import list_ray_nodes
+    nodes_list = nodes if nodes is not None else list_ray_nodes()
+
+    ray_ips = live_worker_node_ips(nodes_list)
     head_ip = manager_pod_ip()
     worker_ray_ips = {ip for ip in ray_ips if ip != head_ip}
-    ip_to_node = node_ip_to_id()
+    ip_to_node = node_ip_to_id(nodes_list)
     auth = canfar.auth_status()
 
     for worker in state.workers:
