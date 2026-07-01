@@ -479,8 +479,8 @@ def index(request: Request) -> str:
   <div class="actions">
     <form method="post" action="/actions/preflight"><button type="submit">Run network preflight</button></form>
     <form method="post" action="/actions/reconcile"><button type="submit">Reconcile state</button></form>
-    <form method="post" action="/actions/stop-cluster"><button type="submit">Stop cluster</button></form>
-    <form method="post" action="/actions/clean-orphans"><button type="submit">Clean orphaned workers</button></form>
+    <form method="post" action="/actions/stop-cluster" onsubmit="return confirm('Are you sure you want to stop the cluster? All running jobs will be terminated.');"><button type="submit">Stop cluster</button></form>
+    <form method="post" action="/actions/clean-orphans" onsubmit="return confirm('Are you sure you want to clean orphaned workers? This will forcibly destroy any unmanaged worker sessions.');"><button type="submit">Clean orphaned workers</button></form>
   </div>
   <h2>Workers</h2>
   {workers_html or "<p>No workers recorded.</p>"}
