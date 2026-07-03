@@ -1,0 +1,1 @@
+## 2024-07-03 - Confirmation Dialogs for Destructive Actions\n**Learning:** Destructive actions ("Stop cluster", "Clean orphans") in the Ray Manager UI lacked safeguards.\n**Action:** Add inline JS `return confirm(...)` handlers directly to form `onsubmit` attributes for lightweight, dependency-free safety rails.

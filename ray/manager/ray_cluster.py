@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import json
 from typing import Any
 
 
@@ -52,7 +53,7 @@ print(json.dumps(ray.nodes()))
         import json
 
         return json.loads(out.stdout.strip() or "[]")
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError):
         return []
 
 
