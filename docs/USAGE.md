@@ -583,7 +583,7 @@ Heavy ML stacks and project-specific deps belong in **your** pixi/uv project.
 | `htop`, `nvtop`, `procps` | CPU/GPU monitoring |
 | `zstd`, `xz-utils`, `bzip2`, `pigz`, `zip`, `unzip` | Archives |
 | `curl`, `wget`, `jq`, `rsync` | Fetch data, inspect JSON, sync files |
-| `less`, `vim-tiny` | Logs and quick edits |
+| `less`, `vim`, `nano`, `emacs -nw` | Logs and terminal editing |
 | `acl` | CANFAR `/arc` file permissions |
 
 **Not in the image:** `node`/`npm`, AI agent CLIs, CUDA libs, Astropy, PyTorch,

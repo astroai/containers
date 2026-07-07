@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cargo \
     cmake \
     curl \
+    emacs-nox \
     fd-find \
     file \
     flex \
@@ -52,6 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     locales \
     lsof \
     make \
+    nano \
     ncdu \
     ninja-build \
     nvtop \
@@ -69,7 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
     universal-ctags \
     unzip \
-    vim-tiny \
+    vim \
     wget \
     xxd \
     xz-utils \
