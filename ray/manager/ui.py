@@ -15,7 +15,7 @@ def flash_html(flash: str | None, message: str | None) -> str:
         "error": "background:#fce8e6;color:#c5221f",
         "warn": "background:#fef7e0;color:#b06000",
     }.get(flash, "background:#e8f0fe;color:#1967d2")
-    return f'<p class="flash" style="{css};padding:0.6rem 1rem;border-radius:4px">{safe}</p>'
+    return f'<p class="flash" role="alert" style="{css};padding:0.6rem 1rem;border-radius:4px">{safe}</p>'
 
 
 def redirect_with_flash(path: str, flash: str, message: str) -> str:
