@@ -43,11 +43,6 @@ build/%:
 push-all: $(addprefix push/,$(SESSION_IMAGES))
 
 push-ray: $(addprefix push/,$(RAY_IMAGES))
-	@# Harbor alias — same digest as ray-worker
-	docker tag $(IMAGE_PREFIX)/ray-worker:$(TAG) $(IMAGE_PREFIX)/ray-worker-cpu:$(TAG)
-	docker push $(IMAGE_PREFIX)/ray-worker-cpu:$(TAG)
-	docker tag $(IMAGE_PREFIX)/ray-worker:$(TAG) $(IMAGE_PREFIX)/ray-worker-cpu:latest
-	docker push $(IMAGE_PREFIX)/ray-worker-cpu:latest
 
 # Production Ray push: bake TAG into manager env (RAY_IMAGE_TAG) — use BUILD_TAG=$(TAG).
 #   make build-ray BUILD_TAG=26.06 TAG=26.06 && make push-ray TAG=26.06 BUILD_TAG=26.06

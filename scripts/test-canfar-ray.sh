@@ -375,7 +375,7 @@ WORKER_IMG="$(printf '%s' "${STATUS_JSON}" | python3 -c "import json,sys; print(
 echo "  worker_image: ${WORKER_IMG}"
 if [[ -n "${WORKER_IMG}" && "${WORKER_IMG}" == *":${TAG}" ]]; then
     echo "  ok  worker image uses tag ${TAG}"
-    if [[ "${WORKER_IMG}" == *"/ray-worker:"* || "${WORKER_IMG}" == *"/ray-worker-cpu:"* ]]; then
+    if [[ "${WORKER_IMG}" == *"/ray-worker:"* ]]; then
         echo "  ok  worker image name (ray-worker)"
     else
         echo "  FAIL worker image name (expected ray-worker, got ${WORKER_IMG})" >&2

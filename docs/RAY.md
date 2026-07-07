@@ -9,8 +9,6 @@ User-owned Ray clusters: a **contributed `ray-manager` session** (port 5000) lau
 | `ray-manager` | Contributed | Register — users launch this |
 | `ray-worker` | Headless | **Do not register** — manager launches workers |
 
-`ray-worker-cpu:<tag>` on Harbor is a **legacy alias** of `ray-worker` (same image). There is no separate GPU worker image.
-
 `ray-base` is build-only (extends `base` with a Python 3.12 Ray venv).
 
 ## Build and test

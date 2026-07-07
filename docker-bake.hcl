@@ -116,8 +116,5 @@ target "ray-manager" {
 target "ray-worker" {
   inherits   = ["_ray"]
   dockerfile = "dockerfiles/ray-worker/Dockerfile"
-  tags = [
-    "${REGISTRY}/${OWNER}/ray-worker:${TAG}",
-    "${REGISTRY}/${OWNER}/ray-worker-cpu:${TAG}",
-  ]
+  tags       = ["${REGISTRY}/${OWNER}/ray-worker:${TAG}"]
 }

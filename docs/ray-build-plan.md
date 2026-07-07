@@ -161,8 +161,6 @@ Name:
 images.canfar.net/<project>/ray-worker:<version>
 ```
 
-Legacy Harbor alias: `ray-worker-cpu:<version>` (same digest).
-
 Built on `astroai/base` + `ray-base` — **no separate CUDA image**. GPU workers use CANFAR `gpu=N` at session launch; the entrypoint verifies `nvidia-smi` when `RAY_WORKER_GPUS>0`. ML/CUDA stacks belong in user pixi/uv projects (same as notebook/webterm).
 
 Responsibilities:

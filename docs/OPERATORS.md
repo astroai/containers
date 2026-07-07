@@ -21,8 +21,6 @@ For **AstroAI project maintainers** who build, push, and register `images.canfar
 | `ray-manager` | `images.canfar.net/astroai/ray-manager:<tag>` | **Contributed** | 5000 | Ray cluster control UI |
 | `ray-worker` | `images.canfar.net/astroai/ray-worker:<tag>` | **Headless** | — | Ray worker CPU or GPU (manager-launched) |
 
-`ray-worker-cpu:<tag>` is a Harbor alias of `ray-worker` (same digest).
-
 Each image carries `io.canfar.skaha.session.type` in its OCI labels (`headless`, `contributed`, or `notebook`) for Harbor inventory.
 
 **Ray:** register **`ray-manager`** only in the Science Portal. Do **not** register `ray-worker` — workers are launched headlessly by the manager. See [RAY.md](RAY.md).
