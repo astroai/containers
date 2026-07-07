@@ -407,12 +407,12 @@ def index(request: Request) -> str:
                 retry = (
                     f'<form class="inline" method="post" '
                     f'action="/actions/retry-worker/{w.session_id}">'
-                    f'<button type="submit">Retry</button></form>'
+                    f'<button type="submit" aria-label="Retry worker {w.name}">Retry</button></form>'
                 )
             logs_link = ""
             if w.logs_path or _store.worker_log_file(w.session_id).is_file():
                 logs_link = (
-                    f' <a href="/api/v1/workers/{w.session_id}/logs" target="_blank">logs</a>'
+                    f' <a href="/api/v1/workers/{w.session_id}/logs" target="_blank" rel="noopener noreferrer" aria-label="View logs for worker {w.name}">logs</a>'
                 )
             rows.append(
                 f"<tr><td>{w.name}</td><td><code>{w.session_id}</code></td>"
@@ -459,13 +459,13 @@ def index(request: Request) -> str:
   <p>Network preflight: {pf_line}</p>
   <p>Live Ray nodes: {count_live_nodes(nodes=list_ray_nodes())}</p>
   <h2>Create cluster</h2>
-  <form method="post" action="/actions/create-cluster">
+  <form method="post" action="/actions/create-cluster" onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.innerText='Creating...'; return true;">
     <div class="grid">
-      <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16"></label>
-      <label>CPUs/worker <input name="cores" type="number" value="1" min="1"></label>
-      <label>RAM GB/worker <input name="ram_gb" type="number" value="4" min="1"></label>
-      <label>GPUs/worker <input name="gpus" type="number" value="0" min="0" max="8"></label>
-      <label>Min joined <input name="min_joined" type="number" value="2" min="1"></label>
+      <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16" required></label>
+      <label>CPUs/worker <input name="cores" type="number" value="1" min="1" required></label>
+      <label>RAM GB/worker <input name="ram_gb" type="number" value="4" min="1" required></label>
+      <label>GPUs/worker <input name="gpus" type="number" value="0" min="0" max="8" required></label>
+      <label>Min joined <input name="min_joined" type="number" value="2" min="1" required></label>
       <label>Partial policy
         <select name="partial_policy">
           <option value="accept_partial">accept partial</option>
