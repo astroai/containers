@@ -47,7 +47,8 @@ RUN ARCH="$(uname -m)" \
         '# Bash-only (/etc/profile sources profile.d for all login shells, including sh).' \
         'if [ -z "${BASH_VERSION:-}" ]; then' \
         '    return 0 2>/dev/null || exit 0' \
-        'fi'; \
+        'fi' \
+        'export STARSHIP_CONFIG=/etc/starship.toml'; \
        /usr/local/bin/starship init bash --print-full-init; \
     } > /etc/profile.d/starship.sh \
     && chmod a+r /etc/profile.d/starship.sh
@@ -68,6 +69,12 @@ RUN printf '%s\n' \
     'set -g allow-passthrough on' \
     'setw -g mode-keys vi' \
     > /etc/tmux.conf
+
+COPY config/starship.toml /etc/starship.toml
+COPY scripts/build-custom-webterm-ui.py /tmp/build-custom-webterm-ui.py
+RUN mkdir -p /cadc \
+    && python3 /tmp/build-custom-webterm-ui.py /cadc/index.html \
+    && rm /tmp/build-custom-webterm-ui.py
 
 COPY scripts/common-init.sh scripts/startup-webterm.sh /cadc/
 COPY scripts/skaha-startup-webterm.sh /skaha/startup.sh

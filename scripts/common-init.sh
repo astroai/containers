@@ -93,15 +93,17 @@ if [[ ! -f "${_state}/welcomed" ]]; then
     upgrade-cadc-tools.sh list          see versions; --upgrade canfar-lab to bump this session
 WELCOME
         if [[ "${ASTROAI_SESSION_KIND:-}" == "webterm" ]]; then
-            cat <<'WEBTERM'
-
-  tmux tabs (prefix Ctrl-b):
-    c        new window (tab)
-    n / p    next / previous window
-    0-9      jump to window number
-    w        pick from window list
-    % / "    split pane vertical / horizontal
-WEBTERM
+            printf '\n\033[1;36m%s\033[0m\n' "  🚀 Welcome to AstroAI Interactive Web Terminal"
+            printf '\033[1;35m%s\033[0m\n' "  ──────────────────────────────────────────────────────────"
+            printf '  %-25s %-25s\n' "Active Session: AstroAI" "User: $(whoami)"
+            printf '  %-25s %-25s\n' "Host: $(hostname)" "Home: $HOME"
+            printf '  %-25s %-25s\n' "Scratch: /scratch" "Starship Prompt: Enabled"
+            printf '\n\033[1;32m%s\033[0m\n' "  Tmux Cheatsheet (Prefix is Ctrl-b):"
+            printf '    %-25s %-25s\n' "c       Create New Tab" "% / \"   Split Pane Vert/Horiz"
+            printf '    %-25s %-25s\n' "n / p   Next/Prev Tab"  "o       Switch Active Pane"
+            printf '    %-25s %-25s\n' "w       List Windows"   "z       Toggle Pane Zoom (Full)"
+            printf '    %-25s %-25s\n' ",       Rename Tab"     "[       Enter Scroll/Copy Mode"
+            printf '\033[1;35m%s\033[0m\n\n' "  ──────────────────────────────────────────────────────────"
         fi
     fi
 fi

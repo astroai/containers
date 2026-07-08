@@ -13,6 +13,7 @@ source /cadc/common-init.sh
 TTYD_ARGS=(
     --writable
     --port 5000
+    --index /cadc/index.html
     -w "${PWD}"
     -t titleFixed="AstroAI Webterm"
     -t 'theme={"background":"#1e1e2e","foreground":"#cdd6f4","cursor":"#f5e0dc","selectionBackground":"#585b70"}'

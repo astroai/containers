@@ -1,0 +1,41 @@
+# Starship configuration for AstroAI webterm
+
+format = """
+[AstroAI](cyan bold) $directory $git_branch$git_status$python$kubernetes$cmd_duration
+[└─>](blue bold) """
+
+add_newline = true
+
+[directory]
+style = "blue bold"
+format = "in [$path]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = "git:"
+style = "green bold"
+format = "on [$symbol$branch]($style)"
+
+[git_status]
+style = "red bold"
+format = "[($all_status$ahead_behind)]($style) "
+
+[python]
+symbol = "py:"
+style = "yellow bold"
+format = "using [$symbol$version]($style) "
+
+[cmd_duration]
+style = "purple bold"
+format = "took [$duration]($style) "
+
+[kubernetes]
+symbol = "kube:"
+style = "magenta bold"
+format = "at [$symbol$context]($style) "
+disabled = false
+
+[character]
+success_symbol = "[➜](green bold) "
+error_symbol = "[➜](red bold) "
