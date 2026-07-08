@@ -537,7 +537,7 @@ def main():
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
-    print(f"Successfully processed {input_file} -> {output_file}")
+    print(f"Successfully wrote custom webterm UI to {output_file}")
 
 if __name__ == "__main__":
     main()
