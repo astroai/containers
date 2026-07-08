@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# peek — view text, markdown, and archives in the terminal (bat/less + decompress).
+# ponytail: no glow; bat -l md is enough. Upgrade: install glow if tables matter.
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: peek [options] <path> [member]
+
+  View a file in the terminal. Archives list contents, or extract one member to stdout.
+
+Options:
+  -t TYPE   Force type: text|md|archive|hex|meta  (default: auto)
+  -h        Show this help
+
+Examples:
+  peek README.md
+  peek notes.md
+  peek logs.tgz
+  peek bundle.tar.gz path/inside.txt
+  peek data.bin -t hex
+EOF
+}
+
+TYPE=""
+while getopts 't:h' opt; do
+    case "${opt}" in
+        t) TYPE="${OPTARG}" ;;
+        h) usage; exit 0 ;;
+        *) usage >&2; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [[ $# -lt 1 ]]; then
+    usage >&2
+    exit 2
+fi
+
+PATH_ARG=$1
+MEMBER=${2:-}
+
+if [[ ! -e "${PATH_ARG}" ]]; then
+    echo "peek: not found: ${PATH_ARG}" >&2
+    exit 1
+fi
+
+page() {
+    # Non-TTY (pipes/CI): print once. TTY: page.
+    local paging=never
+    [[ -t 1 ]] && paging=always
+    if command -v bat >/dev/null 2>&1; then
+        if [[ -n "${1:-}" ]]; then
+            bat --paging="${paging}" -l "$1"
+        else
+            bat --paging="${paging}"
+        fi
+    elif [[ "${paging}" == always ]]; then
+        less -R
+    else
+        cat
+    fi
+}
+
+detect_type() {
+    local f=$1
+    local base lower
+    base=$(basename -- "$f")
+    lower=$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')
+    case "${lower}" in
+        *.md|*.markdown|*.mdown) echo md ;;
+        *.tar|*.tar.gz|*.tgz|*.tar.xz|*.txz|*.tar.bz2|*.tbz2|*.tar.zst|*.zip)
+            echo archive ;;
+        *.gz|*.xz|*.bz2|*.zst)
+            # single-file compress — still stream as text unless -t archive
+            echo text_gz ;;
+        *)
+            if command -v file >/dev/null 2>&1; then
+                local desc
+                desc=$(file -b --mime-type -- "$f" 2>/dev/null || true)
+                case "${desc}" in
+                    text/*|application/json|application/xml|inode/x-empty) echo text ;;
+                    application/gzip|application/x-gzip|application/x-xz|application/x-bzip2|application/zstd|application/zip|application/x-tar)
+                        echo archive ;;
+                    *) echo meta ;;
+                esac
+            else
+                echo text
+            fi
+            ;;
+    esac
+}
+
+view_text() {
+    local lang=${1:-}
+    if [[ -n "${lang}" ]]; then
+        page "${lang}" <"${PATH_ARG}"
+    else
+        page <"${PATH_ARG}"
+    fi
+}
+
+view_stream() {
+    local lang=${1:-}
+    if [[ -n "${lang}" ]]; then
+        page "${lang}"
+    else
+        page
+    fi
+}
+
+list_or_extract_archive() {
+    local f=$1
+    local member=$2
+    local lower
+    lower=$(printf '%s' "$(basename -- "$f")" | tr '[:upper:]' '[:lower:]')
+
+    if [[ -n "${member}" ]]; then
+        case "${lower}" in
+            *.zip)
+                unzip -p -- "$f" "$member" | view_stream
+                ;;
+            *.tar.gz|*.tgz)
+                tar -xOf "$f" "$member" | view_stream
+                ;;
+            *.tar.xz|*.txz)
+                tar -xOf "$f" "$member" | view_stream
+                ;;
+            *.tar.bz2|*.tbz2)
+                tar -xOf "$f" "$member" | view_stream
+                ;;
+            *.tar.zst)
+                tar -xOf "$f" "$member" | view_stream
+                ;;
+            *.tar)
+                tar -xOf "$f" "$member" | view_stream
+                ;;
+            *)
+                echo "peek: cannot extract member from: ${f}" >&2
+                exit 1
+                ;;
+        esac
+        return
+    fi
+
+    echo "==> $(basename -- "$f") (archive listing)"
+    case "${lower}" in
+        *.zip) zipinfo -1 -- "$f" 2>/dev/null || unzip -l -- "$f" ;;
+        *.tar.gz|*.tgz) tar -tzf "$f" ;;
+        *.tar.xz|*.txz) tar -tJf "$f" ;;
+        *.tar.bz2|*.tbz2) tar -tjf "$f" ;;
+        *.tar.zst) tar --zstd -tf "$f" ;;
+        *.tar) tar -tf "$f" ;;
+        *)
+            file -- "$f"
+            echo "peek: unknown archive; try: peek -t hex ${f}" >&2
+            exit 1
+            ;;
+    esac
+    echo
+    echo "Tip: peek ${f} <member>  # stream one file"
+}
+
+decompress_one() {
+    local f=$1
+    local lower
+    lower=$(printf '%s' "$(basename -- "$f")" | tr '[:upper:]' '[:lower:]')
+    case "${lower}" in
+        *.gz) gzip -dc -- "$f" | view_stream ;;
+        *.xz) xz -dc -- "$f" | view_stream ;;
+        *.bz2) bzip2 -dc -- "$f" | view_stream ;;
+        *.zst) zstd -dc -- "$f" | view_stream ;;
+        *) view_text ;;
+    esac
+}
+
+view_hex() {
+    {
+        file -- "$PATH_ARG" || true
+        echo
+        xxd -l 4096 -- "$PATH_ARG" 2>/dev/null || hexdump -C -n 4096 -- "$PATH_ARG"
+    } | less -R
+}
+
+view_meta() {
+    {
+        echo "==> ${PATH_ARG}"
+        ls -la -- "$PATH_ARG" 2>/dev/null || ls -la "$PATH_ARG"
+        echo
+        file -- "$PATH_ARG" || true
+        if command -v fitsheader >/dev/null 2>&1 && file -b -- "$PATH_ARG" 2>/dev/null | grep -qi fits; then
+            echo
+            fitsheader "$PATH_ARG" 2>/dev/null | head -n 80 || true
+        fi
+    } | less -R
+}
+
+if [[ -z "${TYPE}" ]]; then
+    TYPE=$(detect_type "${PATH_ARG}")
+fi
+
+case "${TYPE}" in
+    md|markdown) view_text md ;;
+    text) view_text ;;
+    text_gz) decompress_one "${PATH_ARG}" ;;
+    archive) list_or_extract_archive "${PATH_ARG}" "${MEMBER}" ;;
+    hex) view_hex ;;
+    meta) view_meta ;;
+    *)
+        echo "peek: unknown type: ${TYPE}" >&2
+        exit 2
+        ;;
+esac

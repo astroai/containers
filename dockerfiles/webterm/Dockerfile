@@ -68,6 +68,10 @@ RUN printf '%s\n' \
     'set -s set-clipboard on' \
     'set -g allow-passthrough on' \
     'setw -g mode-keys vi' \
+    'bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel' \
+    'bind-key -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-and-cancel' \
+    'bind-key -T copy-mode MouseDragEnd1Pane send-keys -X copy-selection-and-cancel' \
+    'bind-key m set -g mouse \; display-message "mouse #{?mouse,on,off} (off = native browser select)"' \
     > /etc/tmux.conf
 
 COPY config/starship.toml /etc/starship.toml

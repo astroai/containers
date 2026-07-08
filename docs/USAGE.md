@@ -818,6 +818,7 @@ gh repo clone you/project && cd project
 rg "def train" --type py          # code search
 fd Dockerfile
 bat README.md
+peek README.md                    # same idea; also lists/streams archives
 gh pr list                        # context for the agent
 ```
 
@@ -879,6 +880,25 @@ auto-starts — if you refresh the page, your work is still there:
 tmux attach -t astroai            # reattach after reconnect
 ```
 
+**Copy / paste**
+
+| Action | How |
+|--------|-----|
+| Copy with mouse | Drag-select in the terminal — tmux sends OSC 52 to the browser clipboard |
+| Copy selection | Top-bar **Copy** (uses xterm selection when native select is on) |
+| Paste | `Cmd+V` (Mac) / `Ctrl+Shift+V` (Linux/Windows), or top-bar **Paste** |
+| Native browser select | `Ctrl-b` `m` toggles tmux mouse off so the browser can drag-select |
+| Keyboard copy-mode | `Ctrl-b` `[`, move, `y` to yank |
+
+**View files in the terminal** (also on notebook/vscode/base):
+
+```bash
+peek README.md                 # markdown / text via bat
+peek notes.tgz                 # list archive
+peek notes.tgz path/inside.md  # stream one member
+peek -t hex data.bin           # short hex dump
+```
+
 **tmux tabs** (prefix `Ctrl-b`):
 
 | Keys | Action |
@@ -888,6 +908,7 @@ tmux attach -t astroai            # reattach after reconnect
 | `Ctrl-b` `0`–`9` | Jump to window number |
 | `Ctrl-b` `w` | Interactive window list |
 | `Ctrl-b` `%` / `"` | Split pane vertical / horizontal |
+| `Ctrl-b` `m` | Toggle mouse (off = native browser select) |
 
 For real GUI-style tabs, use the **vscode** session instead.
 

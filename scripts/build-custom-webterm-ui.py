@@ -375,13 +375,15 @@ def main():
     """
 
     # Define custom JS
+    # ttyd 1.7.7 has no ClipboardAddon; inject OSC 52 + paste via window.term.
     js_content = """
     <script>
     function copyCmd(cmd) {
       navigator.clipboard.writeText(cmd).then(() => {
-        showToast('Copied \\"' + cmd + '\\" to clipboard! Paste it using Cmd+V or Ctrl+Shift+V.');
+        showToast('Copied \\"' + cmd + '\\" — paste with Cmd+V / Ctrl+Shift+V or Paste.');
       }).catch(err => {
         console.error('Could not copy command: ', err);
+        showToast('Clipboard write failed (permission?).');
       });
     }
 
@@ -412,7 +414,6 @@ def main():
         sidebar.classList.add('collapsed');
         toggleBtn.innerText = 'Expand Sidebar';
       }
-      // Trigger resize event so xterm.js fits correctly
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
       }, 350);
@@ -427,12 +428,126 @@ def main():
       showToast('Sidebar collapsed for focus view.');
     }
 
-    function copyTerminalText() {
-      showToast('Select text in the terminal with mouse to copy automatically via tmux.');
+    function writeClipboardText(text) {
+      if (!text) return Promise.reject(new Error('empty'));
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      return new Promise(function(resolve, reject) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          if (document.execCommand('copy')) resolve();
+          else reject(new Error('execCommand copy failed'));
+        } catch (e) {
+          reject(e);
+        } finally {
+          ta.remove();
+        }
+      });
     }
 
-    function pasteTerminalText() {
-      showToast('Press Cmd+V (Mac) or Ctrl+Shift+V (Linux/Windows) to paste.');
+    function decodeOsc52Payload(data) {
+      // OSC 52: Ps ; Pd  — Ps may be c/p/s or empty; Pd is base64 (or ? for query).
+      const semi = data.indexOf(';');
+      if (semi < 0) return null;
+      const b64 = data.substring(semi + 1);
+      if (!b64 || b64 === '?') return null;
+      try {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new TextDecoder().decode(bytes);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function installOsc52Handler(term) {
+      if (!term || !term.parser || typeof term.parser.registerOscHandler !== 'function') return false;
+      if (term.__astroaiOsc52) return true;
+      term.parser.registerOscHandler(52, function(data) {
+        const text = decodeOsc52Payload(data);
+        if (text == null) return false;
+        writeClipboardText(text).then(function() {
+          showToast('Copied to clipboard');
+        }).catch(function() {});
+        return true;
+      });
+      term.__astroaiOsc52 = true;
+      return true;
+    }
+
+    function pasteIntoTerminal(text) {
+      if (!text) return;
+      const term = window.term;
+      if (term && typeof term.paste === 'function') {
+        term.paste(text);
+        return;
+      }
+      if (term && typeof term.input === 'function') {
+        term.input(text);
+        return;
+      }
+      showToast('Terminal not ready — try Cmd+V / Ctrl+Shift+V.');
+    }
+
+    function copySelection() {
+      const term = window.term;
+      const sel = term && typeof term.getSelection === 'function' ? term.getSelection() : '';
+      if (sel) {
+        writeClipboardText(sel).then(function() {
+          showToast('Selection copied');
+        }).catch(function() {
+          showToast('Clipboard write failed (permission?).');
+        });
+        return;
+      }
+      showToast('No selection — mouse-drag (tmux), or Ctrl-b m then drag + Copy.');
+    }
+
+    function pasteFromClipboard() {
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        showToast('Paste: Cmd+V (Mac) or Ctrl+Shift+V (Linux/Windows).');
+        return;
+      }
+      navigator.clipboard.readText().then(function(text) {
+        if (!text) {
+          showToast('Clipboard is empty.');
+          return;
+        }
+        pasteIntoTerminal(text);
+        showToast('Pasted');
+      }).catch(function() {
+        showToast('Clipboard read blocked — use Cmd+V / Ctrl+Shift+V.');
+      });
+    }
+
+    function mouseSelectTip() {
+      // ponytail: cannot toggle tmux from the browser without injecting keys into the PTY.
+      showToast('Ctrl-b m toggles tmux mouse. Off = native drag-select + Copy; On = OSC 52 copy.');
+    }
+
+    function waitForTermAndInstallClipboard() {
+      let tries = 0;
+      const timer = setInterval(function() {
+        tries += 1;
+        if (window.term && installOsc52Handler(window.term)) {
+          clearInterval(timer);
+          return;
+        }
+        if (tries > 80) clearInterval(timer);
+      }, 250);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', waitForTermAndInstallClipboard);
+    } else {
+      waitForTermAndInstallClipboard();
     }
     </script>
     """
@@ -479,6 +594,15 @@ def main():
             <div class="cheat-item"><span class="key">Ctrl+b o</span><span>Switch Pane</span></div>
             <div class="cheat-item"><span class="key">Ctrl+b z</span><span>Toggle Zoom</span></div>
             <div class="cheat-item"><span class="key">Ctrl+b [</span><span>Copy Mode</span></div>
+            <div class="cheat-item"><span class="key">Ctrl+b m</span><span>Toggle mouse</span></div>
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <h3>Files</h3>
+          <div class="command-buttons">
+            <button class="btn-cmd" onclick="copyCmd('peek README.md')">peek README.md</button>
+            <button class="btn-cmd" onclick="copyCmd('peek -h')">peek -h</button>
           </div>
         </div>
 
@@ -494,8 +618,9 @@ def main():
             <span id="session-display">AstroAI Web Terminal</span>
           </div>
           <div class="top-actions">
-            <button class="btn-action" onclick="copyTerminalText()">Copy Help</button>
-            <button class="btn-action" onclick="pasteTerminalText()">Paste Help</button>
+            <button class="btn-action" onclick="copySelection()">Copy</button>
+            <button class="btn-action" onclick="pasteFromClipboard()">Paste</button>
+            <button class="btn-action" onclick="mouseSelectTip()">Mouse tip</button>
             <button class="btn-action" onclick="toggleFullscreen()">Fullscreen</button>
           </div>
         </header>

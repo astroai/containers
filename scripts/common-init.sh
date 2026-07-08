@@ -103,6 +103,11 @@ WELCOME
             printf '    %-25s %-25s\n' "n / p   Next/Prev Tab"  "o       Switch Active Pane"
             printf '    %-25s %-25s\n' "w       List Windows"   "z       Toggle Pane Zoom (Full)"
             printf '    %-25s %-25s\n' ",       Rename Tab"     "[       Enter Scroll/Copy Mode"
+            printf '    %-25s %-25s\n' "m       Toggle mouse"   "y (copy-mode) Yank→clipboard"
+            printf '\n\033[1;32m%s\033[0m\n' "  Copy/paste & files:"
+            printf '    %-25s %s\n' "Mouse drag" "copies to OS clipboard (OSC 52)"
+            printf '    %-25s %s\n' "Paste" "Cmd+V / Ctrl+Shift+V, or top-bar Paste"
+            printf '    %-25s %s\n' "peek FILE" "view markdown / text / archives"
             printf '\033[1;35m%s\033[0m\n\n' "  ──────────────────────────────────────────────────────────"
         fi
     fi
