@@ -436,13 +436,17 @@ def index(request: Request) -> str:
                 retry_action = public_path(f"/actions/retry-worker/{w.session_id}")
                 retry = (
                     f'<form class="inline" method="post" '
-                    f'action="{retry_action}">'
-                    f'<button class="btn btn-ghost" type="submit">Retry</button></form>'
+                    f'action="{retry_action}" '
+                    f'onsubmit="var b=this.querySelector(\'button[type=submit]\'); b.disabled=true; b.textContent=\'Retrying...\';">'
+                    f'<button class="btn btn-ghost" type="submit" aria-label="Retry worker {w.name}">Retry</button></form>'
                 )
             logs_link = ""
             if w.logs_path or _store.worker_log_file(w.session_id).is_file():
                 logs_href = public_path(f"/api/v1/workers/{w.session_id}/logs")
-                logs_link = f' <a href="{logs_href}" target="_blank">logs</a>'
+                logs_link = (
+                    f' <a href="{logs_href}" target="_blank" rel="noopener noreferrer" '
+                    f'aria-label="View logs for worker {w.name}">logs</a>'
+                )
             joined_label = "joined" if w.ray_joined else "pending"
             rows.append(
                 f"<tr><td>{w.name}</td><td><code>{w.session_id}</code></td>"
@@ -559,15 +563,15 @@ def index(request: Request) -> str:
   </div>
   <div class="panel">
     <h2>Create cluster</h2>
-    <form method="post" action="{p_create}">
+    <form method="post" action="{p_create}" onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Creating...';">
       <div class="grid">
-        <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16"></label>
-        <label>CPUs/worker <input name="cores" type="number" value="1" min="1"></label>
-        <label>RAM GB/worker <input name="ram_gb" type="number" value="4" min="1"></label>
-        <label>GPUs/worker <input name="gpus" type="number" value="0" min="0" max="8"></label>
-        <label>Min joined <input name="min_joined" type="number" value="2" min="1"></label>
+        <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16" required></label>
+        <label>CPUs/worker <input name="cores" type="number" value="1" min="1" required></label>
+        <label>RAM GB/worker <input name="ram_gb" type="number" value="4" min="1" required></label>
+        <label>GPUs/worker <input name="gpus" type="number" value="0" min="0" max="8" required></label>
+        <label>Min joined <input name="min_joined" type="number" value="2" min="1" required></label>
         <label>Partial policy
-          <select name="partial_policy">
+          <select name="partial_policy" required>
             <option value="accept_partial">accept partial</option>
             <option value="fail_and_cleanup">fail and cleanup</option>
             <option value="continue_waiting">continue waiting</option>
@@ -580,10 +584,10 @@ def index(request: Request) -> str:
   <div class="panel">
     <h2>Maintenance</h2>
     <div class="actions">
-      <form method="post" action="{p_preflight}"><button class="btn" type="submit">Run network preflight</button></form>
-      <form method="post" action="{p_reconcile}"><button class="btn" type="submit">Reconcile state</button></form>
-      <form method="post" action="{p_stop}" onsubmit="return confirm('Stop the cluster and terminate all workers?');"><button class="btn btn-danger" type="submit">Stop cluster</button></form>
-      <form method="post" action="{p_orphans}" onsubmit="return confirm('Clean orphaned worker sessions?');"><button class="btn" type="submit">Clean orphaned workers</button></form>
+      <form method="post" action="{p_preflight}" onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Running...';"><button class="btn" type="submit">Run network preflight</button></form>
+      <form method="post" action="{p_reconcile}" onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Reconciling...';"><button class="btn" type="submit">Reconcile state</button></form>
+      <form method="post" action="{p_stop}" onsubmit="if(!confirm('Stop the cluster and terminate all workers?')) return false; var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Stopping...';"><button class="btn btn-danger" type="submit">Stop cluster</button></form>
+      <form method="post" action="{p_orphans}" onsubmit="if(!confirm('Clean orphaned worker sessions?')) return false; var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Cleaning...';"><button class="btn" type="submit">Clean orphaned workers</button></form>
     </div>
   </div>
   <div class="panel">
