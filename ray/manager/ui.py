@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import html
 import os
+from typing import Any
 from urllib.parse import quote
+
+RETRY_PHASES = frozenset({"CANFAR Failed", "Ray Unhealthy", "Orphaned"})
 
 
 def public_prefix() -> str:
@@ -58,8 +61,119 @@ def phase_class(phase: str) -> str:
         "Stopped": "phase-muted",
         "Idle": "phase-muted",
         "Stopping": "phase-busy",
+        "CANFAR Failed": "phase-bad",
+        "Ray Unhealthy": "phase-warn",
+        "Orphaned": "phase-warn",
     }
     return mapping.get(phase, "phase-muted")
+
+
+def setup_ready(*, authenticated: bool, preflight: dict[str, Any] | None) -> bool:
+    pf = preflight or {}
+    return authenticated and bool(pf.get("passed"))
+
+
+def setup_checklist_html(
+    *,
+    authenticated: bool,
+    auth_idp: str | None,
+    preflight: dict[str, Any] | None,
+    preflight_action: str,
+    ready: bool,
+) -> str:
+    pf = preflight or {}
+    pf_passed = bool(pf.get("passed"))
+    auth_item = "checklist-done" if authenticated else "checklist-todo"
+    pf_item = "checklist-done" if pf_passed else "checklist-todo"
+    auth_detail = (
+        f'<span class="phase-ok">Authenticated ({html.escape(auth_idp or "ok")})</span>'
+        if authenticated
+        else (
+            '<span class="phase-bad">Not authenticated</span>'
+            ' — run in an AstroAI <strong>webterm</strong> or <strong>vscode</strong> session:'
+            ' <code>canfar auth login</code>'
+            ' <button type="button" class="btn btn-ghost btn-sm" id="copy-auth-cmd">Copy</button>'
+        )
+    )
+    pf_detail = (
+        f'<span class="phase-ok">Passed</span> (probe {html.escape(str(pf.get("worker_ip", "?")))})'
+        if pf_passed
+        else (
+            '<span class="phase-warn">Not run or failed</span>'
+            ' — verifies pod-to-pod networking before workers launch.'
+        )
+    )
+    pf_action = ""
+    if not pf_passed:
+        pf_action = (
+            f'<form class="inline checklist-action" method="post" action="{html.escape(preflight_action)}" '
+            f'onsubmit="var b=this.querySelector(\'button[type=submit]\'); b.disabled=true; b.textContent=\'Running...\';">'
+            f'<button class="btn btn-sm" type="submit">Run network preflight</button></form>'
+        )
+    ready_banner = (
+        '<p class="checklist-ready" id="setup-ready-banner">Setup complete — you can create a cluster.</p>'
+        if ready
+        else (
+            '<p class="checklist-blocked" id="setup-ready-banner">'
+            "Complete the checklist above before creating a cluster.</p>"
+        )
+    )
+    return f"""
+    <ol class="checklist" id="setup-checklist">
+      <li class="{auth_item}" id="checklist-auth">
+        <span class="checklist-title">CANFAR authentication</span>
+        <div class="checklist-body" id="auth-status">{auth_detail}</div>
+      </li>
+      <li class="{pf_item}" id="checklist-preflight">
+        <span class="checklist-title">Network preflight</span>
+        <div class="checklist-body" id="preflight-status">{pf_detail} {pf_action}</div>
+      </li>
+    </ol>
+    {ready_banner}
+    """
+
+
+def workers_table_html(entries: list[dict[str, Any]], *, retry_action_prefix: str, logs_href_prefix: str) -> str:
+    if not entries:
+        return ""
+    rows = []
+    for entry in entries:
+        sid = html.escape(entry["session_id"])
+        name = html.escape(entry["name"])
+        phase = html.escape(entry["phase"])
+        phase_cls = html.escape(entry["phase_class"])
+        canfar = html.escape(entry["canfar_status"])
+        ip = html.escape(entry["worker_ip"])
+        joined_label = html.escape(entry["joined_label"])
+        last_error = html.escape(entry["last_error"])
+        notes = last_error
+        if entry.get("logs_available"):
+            logs_href = html.escape(f"{logs_href_prefix}{entry['session_id']}/logs")
+            notes += (
+                f' <a href="{logs_href}" target="_blank" rel="noopener noreferrer" '
+                f'aria-label="View logs for worker {name}">logs</a>'
+            )
+        if entry.get("retry_available"):
+            retry_action = html.escape(f"{retry_action_prefix}{entry['session_id']}")
+            notes += (
+                f' <form class="inline" method="post" action="{retry_action}" '
+                f'onsubmit="var b=this.querySelector(\'button[type=submit]\'); b.disabled=true; b.textContent=\'Retrying...\';">'
+                f'<button class="btn btn-ghost" type="submit" aria-label="Retry worker {name}">Retry</button></form>'
+            )
+        rows.append(
+            f"<tr><td>{name}</td><td><code>{sid}</code></td>"
+            f'<td class="{phase_cls}">{phase}</td>'
+            f"<td>{canfar}</td>"
+            f'<td class="mono">{ip}</td>'
+            f"<td>{joined_label}</td>"
+            f"<td>{notes}</td></tr>"
+        )
+    return (
+        '<table id="workers-table"><tr><th>Name</th><th>Session</th><th>Phase</th><th>CANFAR</th>'
+        "<th>IP</th><th>Ray</th><th>Notes</th></tr>"
+        + "".join(rows)
+        + "</table>"
+    )
 
 
 PAGE_STYLE = """
@@ -175,4 +289,22 @@ form.inline { display: inline; margin: 0; }
   border: 1px solid rgba(61,156,240,0.35); background: rgba(61,156,240,0.1);
 }
 .op-banner.active { display: block; }
+.checklist {
+  list-style: none; margin: 0 0 0.75rem; padding: 0;
+  display: flex; flex-direction: column; gap: 0.65rem;
+}
+.checklist li {
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.85rem;
+  background: var(--bg);
+}
+.checklist-done { border-color: rgba(61,214,140,0.35); }
+.checklist-todo { border-color: rgba(245,197,66,0.35); }
+.checklist-title { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+.checklist-body { color: var(--muted); font-size: 0.9rem; }
+.checklist-action { margin-left: 0.35rem; }
+.checklist-ready { color: var(--ok); margin: 0 0 0.5rem; }
+.checklist-blocked { color: var(--warn); margin: 0 0 0.5rem; }
+.btn-sm { padding: 0.3rem 0.65rem; font-size: 0.82rem; }
+fieldset[disabled] { opacity: 0.55; pointer-events: none; }
+fieldset[disabled] .create-hint { opacity: 1; pointer-events: auto; }
 """

@@ -27,8 +27,18 @@ from preflight import run_preflight
 from ray_cluster import count_live_nodes, list_ray_nodes, ray_address, ray_running
 from reconcile import reconcile_cluster
 from settings import ManagerSettings, manager_pod_ip
-from state_store import StateStore
-from ui import PAGE_STYLE, flash_html, phase_class, public_path, redirect_with_flash
+from state_store import ClusterState, StateStore
+from ui import (
+    PAGE_STYLE,
+    RETRY_PHASES,
+    flash_html,
+    phase_class,
+    public_path,
+    redirect_with_flash,
+    setup_checklist_html,
+    setup_ready,
+    workers_table_html,
+)
 from workers import destroy_all_workers, destroy_worker, launch_worker
 from worker_logs import archive_session_logs, read_worker_logs
 
@@ -429,58 +439,23 @@ def index(request: Request) -> str:
     p_reconcile = public_path("/actions/reconcile")
     p_stop = public_path("/actions/stop-cluster")
     p_orphans = public_path("/actions/clean-orphans")
+    ui_paths = _ui_paths()
 
-    workers_html = ""
-    if state and state.workers:
-        rows = []
-        for w in state.workers:
-            retry = ""
-            if w.phase in {"CANFAR Failed", "Ray Unhealthy", "Orphaned"}:
-                retry_action = public_path(f"/actions/retry-worker/{w.session_id}")
-                retry = (
-                    f'<form class="inline" method="post" '
-                    f'action="{retry_action}" '
-                    f'onsubmit="var b=this.querySelector(\'button[type=submit]\'); b.disabled=true; b.textContent=\'Retrying...\';">'
-                    f'<button class="btn btn-ghost" type="submit" aria-label="Retry worker {w.name}">Retry</button></form>'
-                )
-            logs_link = ""
-            if w.logs_path or _store.worker_log_file(w.session_id).is_file():
-                logs_href = public_path(f"/api/v1/workers/{w.session_id}/logs")
-                logs_link = (
-                    f' <a href="{logs_href}" target="_blank" rel="noopener noreferrer" '
-                    f'aria-label="View logs for worker {w.name}">logs</a>'
-                )
-            joined_label = "joined" if w.ray_joined else "pending"
-            rows.append(
-                f"<tr><td>{w.name}</td><td><code>{w.session_id}</code></td>"
-                f'<td class="{phase_class(w.phase)}">{w.phase}</td>'
-                f"<td>{w.canfar_status or '—'}</td>"
-                f"<td class=\"mono\">{w.worker_ip or '—'}</td>"
-                f"<td>{joined_label}</td>"
-                f"<td>{w.last_error or ''}{logs_link} {retry}</td></tr>"
-            )
-        workers_html = (
-            "<table><tr><th>Name</th><th>Session</th><th>Phase</th><th>CANFAR</th>"
-            "<th>IP</th><th>Ray</th><th>Notes</th></tr>"
-            + "".join(rows)
-            + "</table>"
-        )
-
-    auth_line = (
-        f'<span class="phase-ok">Authenticated ({auth.idp})</span>'
-        if auth.authenticated
-        else (
-            '<span class="phase-bad">Not authenticated</span> — '
-            "run <code>canfar auth login</code> in an AstroAI <strong>webterm</strong> or "
-            "<strong>vscode</strong> session first (credentials persist on <code>/arc/home</code>), "
-            "then refresh this page."
-        )
+    worker_entries = _worker_ui_entries(state)
+    workers_html = workers_table_html(
+        worker_entries,
+        retry_action_prefix=ui_paths["retry_worker_prefix"],
+        logs_href_prefix=ui_paths["worker_logs_prefix"],
     )
-    pf_line = (
-        f'<span class="phase-ok">Passed</span> (probe {preflight.get("worker_ip", "?")})'
-        if preflight.get("passed")
-        else '<span class="phase-warn">Not run or failed</span> — run preflight before creating a cluster'
+    cluster_ready = setup_ready(authenticated=auth.authenticated, preflight=preflight)
+    checklist_html = setup_checklist_html(
+        authenticated=auth.authenticated,
+        auth_idp=auth.idp,
+        preflight=preflight,
+        preflight_action=p_preflight,
+        ready=cluster_ready,
     )
+    create_disabled = "" if cluster_ready else " disabled"
     cluster_phase = state.phase if state else "Idle"
     joined = len(_store.joined_workers(state)) if state else 0
     target = state.worker_count if state else 0
@@ -559,14 +534,14 @@ def index(request: Request) -> str:
     </div>
   </div>
   <div class="panel">
-    <h2>Status</h2>
-    <p>CANFAR auth: {auth_line}</p>
-    <p>Network preflight: {pf_line}</p>
+    <h2>Setup checklist</h2>
+    {checklist_html}
     <p class="muted">Use Ray Dashboard for jobs, actors, logs, and metrics. This page controls CANFAR worker sessions.</p>
   </div>
   <div class="panel">
     <h2>Create cluster</h2>
-    <form method="post" action="{p_create}" onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Creating...';">
+    <form method="post" action="{p_create}" id="create-cluster-form" onsubmit="if(!window.__setupReady){{return false;}} var b=this.querySelector('button[type=submit]'); b.disabled=true; b.textContent='Creating...';">
+      <fieldset id="create-cluster-fieldset"{create_disabled}>
       <div class="grid">
         <label>Workers <input name="worker_count" type="number" value="2" min="1" max="16" required></label>
         <label>CPUs/worker <input name="cores" type="number" value="1" min="1" required></label>
@@ -581,7 +556,8 @@ def index(request: Request) -> str:
           </select>
         </label>
       </div>
-      <button class="btn btn-primary" type="submit">Create cluster</button>
+      <button class="btn btn-primary" type="submit" id="create-cluster-btn">Create cluster</button>
+      </fieldset>
     </form>
   </div>
   <div class="panel">
@@ -595,7 +571,7 @@ def index(request: Request) -> str:
   </div>
   <div class="panel">
     <h2>Workers</h2>
-    {workers_html or '<p class="muted">No workers recorded.</p>'}
+    <div id="workers-panel">{workers_html or '<p class="muted" id="workers-empty">No workers recorded.</p>'}</div>
   </div>
   <p class="footer">
     <a href="{p_dash}">Ray Dashboard</a> ·
@@ -606,12 +582,107 @@ def index(request: Request) -> str:
 </div>
 <script>
 (function () {{
+  window.__setupReady = {"true" if cluster_ready else "false"};
+  const uiPaths = {{
+    retryWorkerPrefix: {ui_paths["retry_worker_prefix"]!r},
+    workerLogsPrefix: {ui_paths["worker_logs_prefix"]!r},
+    preflightAction: {ui_paths["preflight_action"]!r},
+  }};
   const phaseEl = document.getElementById("cluster-phase");
   const joinedEl = document.getElementById("workers-joined");
   const nodesEl = document.getElementById("ray-nodes");
   const dashEl = document.getElementById("dash-status");
   const barEl = document.getElementById("join-bar");
   const opEl = document.getElementById("op-banner");
+  const workersPanel = document.getElementById("workers-panel");
+  const createFieldset = document.getElementById("create-cluster-fieldset");
+  const setupBanner = document.getElementById("setup-ready-banner");
+  const checklistAuth = document.getElementById("checklist-auth");
+  const checklistPreflight = document.getElementById("checklist-preflight");
+  const authStatusEl = document.getElementById("auth-status");
+  const preflightStatusEl = document.getElementById("preflight-status");
+
+  function esc(text) {{
+    return String(text ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }}
+
+  function renderWorkersTable(entries) {{
+    if (!entries || !entries.length) {{
+      return '<p class="muted" id="workers-empty">No workers recorded.</p>';
+    }}
+    let rows = entries.map(function (entry) {{
+      let notes = esc(entry.last_error);
+      if (entry.logs_available) {{
+        const logsHref = esc(uiPaths.workerLogsPrefix + entry.session_id + "/logs");
+        notes += ' <a href="' + logsHref + '" target="_blank" rel="noopener noreferrer" aria-label="View logs for worker ' + esc(entry.name) + '">logs</a>';
+      }}
+      if (entry.retry_available) {{
+        const retryAction = esc(uiPaths.retryWorkerPrefix + entry.session_id);
+        notes += ' <form class="inline" method="post" action="' + retryAction + '" onsubmit="var b=this.querySelector(\\'button[type=submit]\\'); b.disabled=true; b.textContent=\\'Retrying...\\';"><button class="btn btn-ghost" type="submit" aria-label="Retry worker ' + esc(entry.name) + '">Retry</button></form>';
+      }}
+      return "<tr><td>" + esc(entry.name) + "</td><td><code>" + esc(entry.session_id) + "</code></td>"
+        + '<td class="' + esc(entry.phase_class) + '">' + esc(entry.phase) + "</td>"
+        + "<td>" + esc(entry.canfar_status) + "</td>"
+        + '<td class="mono">' + esc(entry.worker_ip) + "</td>"
+        + "<td>" + esc(entry.joined_label) + "</td>"
+        + "<td>" + notes + "</td></tr>";
+    }}).join("");
+    return '<table id="workers-table"><tr><th>Name</th><th>Session</th><th>Phase</th><th>CANFAR</th>'
+      + "<th>IP</th><th>Ray</th><th>Notes</th></tr>" + rows + "</table>";
+  }}
+
+  function renderAuthDetail(auth) {{
+    if (auth.authenticated) {{
+      return '<span class="phase-ok">Authenticated (' + esc(auth.idp || "ok") + ")</span>";
+    }}
+    return '<span class="phase-bad">Not authenticated</span> — run in an AstroAI <strong>webterm</strong> or <strong>vscode</strong> session: <code>canfar auth login</code> <button type="button" class="btn btn-ghost btn-sm" id="copy-auth-cmd">Copy</button>';
+  }}
+
+  function renderPreflightDetail(preflight, paths) {{
+    const pf = preflight || {{}};
+    if (pf.passed) {{
+      return '<span class="phase-ok">Passed</span> (probe ' + esc(pf.worker_ip || "?") + ")";
+    }}
+    let html = '<span class="phase-warn">Not run or failed</span> — verifies pod-to-pod networking before workers launch.';
+    html += ' <form class="inline checklist-action" method="post" action="' + esc(paths.preflightAction) + '" onsubmit="var b=this.querySelector(\\'button[type=submit]\\'); b.disabled=true; b.textContent=\\'Running...\\';"><button class="btn btn-sm" type="submit">Run network preflight</button></form>';
+    return html;
+  }}
+
+  function bindCopyAuth() {{
+    const btn = document.getElementById("copy-auth-cmd");
+    if (!btn || btn.dataset.bound === "1") return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", function () {{
+      navigator.clipboard.writeText("canfar auth login").then(function () {{
+        btn.textContent = "Copied!";
+        setTimeout(function () {{ btn.textContent = "Copy"; }}, 1500);
+      }}).catch(function () {{}});
+    }});
+  }}
+
+  function updateSetupChecklist(status) {{
+    const auth = status.auth || {{}};
+    const pf = status.preflight || {{}};
+    const ready = !!status.setup_ready;
+    window.__setupReady = ready;
+    if (checklistAuth) checklistAuth.className = auth.authenticated ? "checklist-done" : "checklist-todo";
+    if (checklistPreflight) checklistPreflight.className = pf.passed ? "checklist-done" : "checklist-todo";
+    if (authStatusEl) authStatusEl.innerHTML = renderAuthDetail(auth);
+    if (preflightStatusEl) preflightStatusEl.innerHTML = renderPreflightDetail(pf, status.ui_paths || uiPaths);
+    if (setupBanner) {{
+      setupBanner.className = ready ? "checklist-ready" : "checklist-blocked";
+      setupBanner.textContent = ready
+        ? "Setup complete — you can create a cluster."
+        : "Complete the checklist above before creating a cluster.";
+    }}
+    if (createFieldset) createFieldset.disabled = !ready;
+    bindCopyAuth();
+  }}
+
   async function refresh() {{
     try {{
       const [status, dash] = await Promise.all([
@@ -632,6 +703,8 @@ def index(request: Request) -> str:
       if (dashEl) dashEl.innerHTML = dash.ready
         ? '<span class="phase-ok">ready</span>'
         : '<span class="phase-busy">starting…</span>';
+      if (workersPanel) workersPanel.innerHTML = renderWorkersTable(status.worker_ui || []);
+      updateSetupChecklist(status);
       if (opEl) {{
         const op = status.operation;
         if (op && op.running) {{
@@ -647,16 +720,52 @@ def index(request: Request) -> str:
       }}
     }} catch (e) {{ /* ignore transient poll errors */ }}
   }}
+  bindCopyAuth();
   setInterval(refresh, 4000);
 }})();
 </script>
 </body></html>"""
 
 
+def _worker_ui_entries(state: ClusterState | None) -> list[dict[str, Any]]:
+    if not state:
+        return []
+    entries: list[dict[str, Any]] = []
+    for worker in state.workers:
+        entries.append(
+            {
+                "name": worker.name,
+                "session_id": worker.session_id,
+                "phase": worker.phase,
+                "phase_class": phase_class(worker.phase),
+                "canfar_status": worker.canfar_status or "—",
+                "worker_ip": worker.worker_ip or "—",
+                "ray_joined": worker.ray_joined,
+                "joined_label": "joined" if worker.ray_joined else "pending",
+                "last_error": worker.last_error or "",
+                "logs_available": bool(
+                    worker.logs_path or _store.worker_log_file(worker.session_id).is_file()
+                ),
+                "retry_available": worker.phase in RETRY_PHASES,
+            }
+        )
+    return entries
+
+
+def _ui_paths() -> dict[str, str]:
+    return {
+        "retry_worker_prefix": public_path("/actions/retry-worker/"),
+        "worker_logs_prefix": public_path("/api/v1/workers/"),
+        "preflight_action": public_path("/actions/preflight"),
+    }
+
+
 def _cluster_payload(state: Any, nodes: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     op = active_operation()
     if nodes is None:
         nodes = list_ray_nodes()
+    auth = _canfar.auth_status()
+    preflight = state.preflight if state else None
     payload = {
         "ray_address": ray_address(),
         "manager_ip": manager_pod_ip(),
@@ -669,8 +778,12 @@ def _cluster_payload(state: Any, nodes: list[dict[str, Any]] | None = None) -> d
         "dashboard_path": public_path("/dashboard/"),
         "worker_image": _settings.worker_image,
         "cluster": asdict(state) if state else None,
-        "preflight": state.preflight if state else None,
+        "preflight": preflight,
         "workers": [asdict(w) for w in state.workers] if state else [],
+        "worker_ui": _worker_ui_entries(state),
+        "ui_paths": _ui_paths(),
+        "auth": asdict(auth),
+        "setup_ready": setup_ready(authenticated=auth.authenticated, preflight=preflight),
         "joined_workers": len(_store.joined_workers(state)) if state else 0,
         "operation": op.as_dict() if op else None,
     }
