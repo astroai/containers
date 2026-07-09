@@ -108,14 +108,16 @@ def api_auth_status() -> JSONResponse:
 @app.get("/api/v1/status")
 def api_status() -> JSONResponse:
     _touch_heartbeat()
-    state = reconcile_cluster(canfar=_canfar, store=_store)
-    return JSONResponse(_cluster_payload(state))
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
+    return JSONResponse(_cluster_payload(state, nodes=nodes))
 
 
 @app.post("/api/v1/cluster/reconcile")
 def api_cluster_reconcile() -> JSONResponse:
-    state = reconcile_cluster(canfar=_canfar, store=_store)
-    return JSONResponse(_cluster_payload(state))
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
+    return JSONResponse(_cluster_payload(state, nodes=nodes))
 
 
 def _cluster_create_request(body: ClusterCreateBody) -> ClusterCreateRequest:
@@ -354,7 +356,8 @@ def action_stop_cluster() -> RedirectResponse:
 
 @app.post("/actions/reconcile")
 def action_reconcile() -> RedirectResponse:
-    state = reconcile_cluster(canfar=_canfar, store=_store)
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
     joined = len(_store.joined_workers(state)) if state else 0
     return RedirectResponse(
         redirect_with_flash("/", "ok", f"Reconciled — {joined} worker(s) joined"),
@@ -406,11 +409,11 @@ def api_dashboard_status() -> JSONResponse:
 def index(request: Request) -> str:
     _touch_heartbeat()
     auth = _canfar.auth_status()
-    state = reconcile_cluster(canfar=_canfar, store=_store)
+    nodes = list_ray_nodes()
+    state = reconcile_cluster(canfar=_canfar, store=_store, nodes=nodes)
     preflight = (state.preflight if state else None) or {}
     flash = request.query_params.get("flash")
     flash_msg = request.query_params.get("msg")
-    nodes = list_ray_nodes()
     live_nodes = count_live_nodes(nodes=nodes)
     dash_ok = dashboard_ready()
     op = active_operation()
@@ -646,9 +649,10 @@ def index(request: Request) -> str:
 </body></html>"""
 
 
-def _cluster_payload(state: Any) -> dict[str, Any]:
+def _cluster_payload(state: Any, nodes: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     op = active_operation()
-    nodes = list_ray_nodes()
+    if nodes is None:
+        nodes = list_ray_nodes()
     payload = {
         "ray_address": ray_address(),
         "manager_ip": manager_pod_ip(),
