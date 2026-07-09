@@ -81,6 +81,9 @@ if [[ ! -f "${_state}/welcomed" ]]; then
     /arc/home           persistent config in ~/.canfar/lab
 
   Getting help:
+    canfar-lab paths                    work/scratch/cache paths
+    canfar-lab tools                    tools on PATH (+ versions)
+    canfar-lab check                    quick health check
     canfar-lab guide                    full command list
     less /opt/astroai/USAGE.md          detailed usage guide
 

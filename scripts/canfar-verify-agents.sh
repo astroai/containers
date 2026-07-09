@@ -93,7 +93,7 @@ check_install() {
     fi
 
     if ! login_shell "canfar-lab --yes agent install ${tool}"; then
-        if [[ "${tool}" == "goose" ]]; then
+        if [[ "${tool}" == "goose" || "${tool}" == "copilot" ]]; then
             skip "agent install ${tool}" "download failed (network)"
             return 0
         fi

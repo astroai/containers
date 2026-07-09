@@ -85,8 +85,15 @@ is_registry_auth_error() {
 }
 
 create_headless_session() {
-    canfar create --name "${SESSION_NAME}" headless "${FULL_IMAGE}" -- \
-        bash /opt/astroai/bin/canfar-verify.sh 2>&1
+    # Small requests schedule more reliably on busy clusters (defaults often Pending).
+    local cpu="${CANFAR_TEST_CPU:-1}"
+    local memory="${CANFAR_TEST_MEMORY:-1}"
+    local cmd=(bash /opt/astroai/bin/canfar-verify.sh)
+    if [[ "${CANFAR_TEST_QUICK:-0}" == "1" ]]; then
+        cmd=(bash /opt/astroai/bin/canfar-verify.sh --quick)
+    fi
+    canfar create --name "${SESSION_NAME}" --cpu "${cpu}" --memory "${memory}" \
+        headless "${FULL_IMAGE}" -- "${cmd[@]}" 2>&1
 }
 
 registry_auth_hint() {

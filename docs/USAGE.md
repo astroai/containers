@@ -59,6 +59,9 @@ Follow the prompts — browser auth or paste a token. Done.
 
 ```bash
 canfar-lab status                    # quotas, team projects, GMS/vault, CANFAR auth/sessions, processes
+canfar-lab paths                     # resolved work/scratch/cache/save paths
+canfar-lab tools                     # tools on PATH (+ versions)
+canfar-lab check                     # quick health check
 canfar-lab init mylab                 # creates a pixi project in the work directory
 cd mylab
 pixi add numpy astropy
@@ -106,7 +109,7 @@ pixi run python analysis.py
 That's it — you're up and running. The rest of this guide covers storage details,
 GPU workflows, team workspaces, and everything else.
 
-**Handy commands:** `canfar-lab guide` · `canfar-lab status` · `canfar-lab doctor` · `less /opt/astroai/USAGE.md`
+**Handy commands:** `canfar-lab guide` · `canfar-lab status` · `canfar-lab paths` · `canfar-lab tools` · `canfar-lab check` · `canfar-lab doctor` · `less /opt/astroai/USAGE.md`
 
 ---
 
@@ -529,6 +532,9 @@ gh run list --limit 5             # recent CI runs
 |---------|-------------|
 | `canfar-lab guide` | Full command list (this doc is the long form) |
 | `canfar-lab status` | Quotas, home breakdown, team projects (access/ACL/GMS/vault), **`canfar auth show`**, **`canfar ps`**, top processes |
+| `canfar-lab paths` | Resolved work/scratch/cache/save paths (`--json`) |
+| `canfar-lab tools` | Session tools on PATH with versions (`--json`) |
+| `canfar-lab check` | Quick health check; exit `1` on failure (`--strict` for recommended tools) |
 | `canfar-lab init [name]` | New project under `TMP_SRC_DIR` (`--uv`, `--no-git`, `--no-gh`) |
 | `canfar-lab clone <owner/repo> [dir]` | Clone + install deps (`--from-env`, `--from`) |
 | `canfar-lab save [name]` | Save lockfiles + manifest (~KB) (`--full`, `--to`) |
