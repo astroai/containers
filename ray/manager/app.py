@@ -556,7 +556,9 @@ def index(request: Request) -> str:
           </select>
         </label>
       </div>
-      <button class="btn btn-primary" type="submit" id="create-cluster-btn">Create cluster</button>
+      <span class="create-hint" title="Complete the setup checklist above before creating a cluster." id="create-cluster-hint">
+        <button class="btn btn-primary" type="submit" id="create-cluster-btn">Create cluster</button>
+      </span>
       </fieldset>
     </form>
   </div>
@@ -639,7 +641,7 @@ def index(request: Request) -> str:
     if (auth.authenticated) {{
       return '<span class="phase-ok">Authenticated (' + esc(auth.idp || "ok") + ")</span>";
     }}
-    return '<span class="phase-bad">Not authenticated</span> — run in an AstroAI <strong>webterm</strong> or <strong>vscode</strong> session: <code>canfar auth login</code> <button type="button" class="btn btn-ghost btn-sm" id="copy-auth-cmd">Copy</button>';
+    return '<span class="phase-bad">Not authenticated</span> — run in an AstroAI <strong>webterm</strong> or <strong>vscode</strong> session: <code>canfar auth login</code> <button type="button" class="btn btn-ghost btn-sm" id="copy-auth-cmd" aria-label="Copy authentication command" title="Copy authentication command">Copy</button>';
   }}
 
   function renderPreflightDetail(preflight, paths) {{
@@ -680,6 +682,14 @@ def index(request: Request) -> str:
         : "Complete the checklist above before creating a cluster.";
     }}
     if (createFieldset) createFieldset.disabled = !ready;
+    const createHint = document.getElementById("create-cluster-hint");
+    const createBtn = document.getElementById("create-cluster-btn");
+    if (createHint) {{
+      createHint.title = ready ? "" : "Complete the setup checklist above before creating a cluster.";
+    }}
+    if (createBtn) {{
+      createBtn.style.pointerEvents = ready ? "auto" : "none";
+    }}
     bindCopyAuth();
   }}
 

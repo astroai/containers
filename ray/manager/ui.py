@@ -92,7 +92,8 @@ def setup_checklist_html(
             '<span class="phase-bad">Not authenticated</span>'
             ' — run in an AstroAI <strong>webterm</strong> or <strong>vscode</strong> session:'
             ' <code>canfar auth login</code>'
-            ' <button type="button" class="btn btn-ghost btn-sm" id="copy-auth-cmd">Copy</button>'
+            ' <button type="button" class="btn btn-ghost btn-sm" id="copy-auth-cmd" '
+            'aria-label="Copy authentication command" title="Copy authentication command">Copy</button>'
         )
     )
     pf_detail = (
@@ -207,6 +208,7 @@ body {
   min-height: 100vh;
 }
 a { color: var(--accent); text-decoration: none; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 a:hover { color: var(--accent-hover); text-decoration: underline; }
 .wrap { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
 .topbar {
