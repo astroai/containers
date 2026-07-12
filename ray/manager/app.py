@@ -556,7 +556,9 @@ def index(request: Request) -> str:
           </select>
         </label>
       </div>
-      <button class="btn btn-primary" type="submit" id="create-cluster-btn">Create cluster</button>
+      <span class="create-hint" tabindex="0" title="Complete the setup checklist above to enable cluster creation." aria-description="Complete the setup checklist above to enable cluster creation.">
+        <button class="btn btn-primary" type="submit" id="create-cluster-btn">Create cluster</button>
+      </span>
       </fieldset>
     </form>
   </div>

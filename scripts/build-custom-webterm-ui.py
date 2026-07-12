@@ -26,7 +26,7 @@ def main():
             success = True
             print("Successfully fetched ttyd template.")
             break
-        except Exception as e:
+        except Exception:
             time.sleep(0.5)
 
     p.terminate()

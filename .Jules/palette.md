@@ -1,3 +1,6 @@
 ## 2026-07-06 - Backend-Rendered HTML Forms UX Insight
 **Learning:** In purely backend-rendered Python templates (like FastAPI generating HTML directly), adding standard Javascript `onsubmit` confirmation dialogs is a highly effective, zero-dependency way to prevent destructive actions (like stopping clusters or cleaning workers) without introducing complex frontend frameworks.
 **Action:** When working on backend-rendered UI projects without a dedicated frontend framework, prioritize native browser features (like `confirm()`) and semantic HTML (like `role="alert"`) for immediate UX and accessibility wins before reaching for external libraries or custom Javascript.
+## 2025-02-05 - Tooltips on disabled elements
+**Learning:** Adding a title tooltip to a disabled element (like a button inside a disabled fieldset) does not work directly because disabled elements swallow pointer events and cannot receive keyboard focus. Wrapping the element in a span with `pointer-events: auto` solves the hover issue, but to make it fully accessible for keyboard and screen-reader users, the wrapper span must also have `tabindex="0"` and an `aria-description`.
+**Action:** When implementing tooltips for disabled states, always use a wrapper element with `tabindex="0"`, `aria-description`, and `pointer-events: auto` to ensure both mouse and keyboard accessibility.
