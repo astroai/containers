@@ -30,8 +30,11 @@ User-owned Ray clusters: a **contributed `ray-manager` session** (port 5000) lau
 make build-ray BUILD_TAG=26.06
 make test-ray                              # local: 1-worker, 2-worker + recovery
 make push-ray TAG=26.06
-make test-canfar-ray TAG=26.06             # CANFAR: 2-worker cluster lifecycle
-make test-canfar-ray-gpu TAG=26.06         # CANFAR: 1 GPU worker (production)
+make test-canfar-ray TAG=26.07             # CANFAR: 2-worker cluster lifecycle
+make test-canfar-ray-gpu TAG=26.07         # CANFAR: 1 GPU worker (production)
+# If headless probe/workers hang Pending: see docs/HEADLESS_PENDING.md
+# CANFAR_RAY_SKIP_PREFLIGHT=1 make test-canfar-ray TAG=26.07
+# Launch managers with ≥8GiB when exercising Ray Jobs (4GiB OOMs the dashboard).
 ```
 
 Ray layers use the **same bake `TAG` as `base`** — no separate `BASE_TAG` pin.
@@ -60,7 +63,7 @@ Maintainer smoke tests load docker login credentials and persist them to `/arc/h
 
 ## Network preflight
 
-Preflight launches a **headless probe session** to verify pod-to-pod TCP on Ray ports (6379–6381). This requires CANFAR/Skaha to allow traffic between a user's contributed manager and their headless workers. If all `worker->manager` checks fail while the manager is healthy, that is usually **platform session-to-session network isolation** — see [ray-build-plan.md](ray-build-plan.md) §18. Worker logs showing `ERROR: cannot reach Ray head at <manager-ip>:6379` confirm the same block after the worker starts.
+Preflight launches a **headless probe session** to verify pod-to-pod TCP on Ray ports (6379–6381). This requires CANFAR/Skaha to allow traffic between a user's contributed manager and their headless workers. If the probe stays **Pending** with no Start Time, that is a **headless scheduling** hang — see [HEADLESS_PENDING.md](HEADLESS_PENDING.md). If all `worker->manager` checks fail while the manager is healthy, that is usually **platform session-to-session network isolation** — see [ray-build-plan.md](ray-build-plan.md) §18. Worker logs showing `ERROR: cannot reach Ray head at <manager-ip>:6379` confirm the same block after the worker starts.
 
 Maintainer tests can set `CANFAR_RAY_SKIP_PREFLIGHT=1` to exercise UI/auth without preflight when staging blocks cross-session TCP.
 

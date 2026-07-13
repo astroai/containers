@@ -427,7 +427,10 @@ print(json.dumps(d.get('preflight') or {}))
 " 2>/dev/null || true)"
         echo "${PF_JSON}" | python3 -m json.tool || echo "${PF_JSON}"
         if ! printf '%s' "${PF_JSON}" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('passed') else 1)"; then
-            if printf '%s' "${PF_JSON}" | grep -q "session-to-session network isolation"; then
+            if printf '%s' "${PF_JSON}" | grep -qiE 'Pending|Start Time Unknown|probe status=Pending'; then
+                echo "Network preflight failed — headless probe stayed Pending (Skaha headless hang)." >&2
+                echo "See docs/HEADLESS_PENDING.md. Prune stuck headless sessions; retry later or set CANFAR_RAY_SKIP_PREFLIGHT=1 for UI-only." >&2
+            elif printf '%s' "${PF_JSON}" | grep -q "session-to-session network isolation"; then
                 echo "Network preflight failed — likely CANFAR platform networking, not an image bug." >&2
                 echo "Set CANFAR_RAY_SKIP_PREFLIGHT=1 to run remaining checks, or ask ops to allow cross-session Ray ports." >&2
             else

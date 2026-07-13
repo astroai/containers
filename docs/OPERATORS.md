@@ -204,19 +204,34 @@ make build/notebook
 # simulates: /skaha/startup.sh <session-id> on port 8888
 ```
 
-## Post-push verification on CANFAR (headless)
+## Post-push verification on CANFAR
 
-After pushing to Harbor, run a headless Skaha session that executes `canfar-verify.sh` inside the image. Requires the [canfar CLI](https://opencadc.github.io/canfar/) authenticated (`canfar login` (or deprecated `canfar auth login`)). Harbor pull auth is **not** required when the `astroai` project is public (see [Harbor registry](#harbor-registry-public-project)).
+Requires the [canfar CLI](https://opencadc.github.io/canfar/) authenticated (`canfar login`). Harbor pull auth is **not** required when the `astroai` project is public (see [Harbor registry](#harbor-registry-public-project)).
+
+**Interactive images (preferred interim / always useful):**
 
 ```bash
-make push/base TAG=26.06
-make test-canfar IMAGE=base TAG=26.06
-
-# Or directly:
-./scripts/test-canfar.sh webterm 26.06
+make test-canfar-session IMAGE=webterm TAG=26.07
+make test-canfar-session IMAGE=vscode TAG=26.07
+make test-canfar-session IMAGE=marimo TAG=26.07
+make test-canfar-session IMAGE=notebook TAG=26.07
 ```
 
-The script creates a headless session, waits for it to finish, prints logs (`canfar logs`), and checks for `All checks passed.` Session cleanup is automatic.
+Creates a contributed/notebook session, waits for **Running**, and checks the connectURL HTTP response. Does not depend on headless scheduling.
+
+**Headless in-image verify** (`canfar-verify.sh` via Skaha headless):
+
+```bash
+make push/base TAG=26.07
+CANFAR_TEST_QUICK=1 make test-canfar IMAGE=base TAG=26.07
+
+# Or directly (full agent installs — slow):
+./scripts/test-canfar.sh webterm 26.07
+```
+
+`test-canfar.sh` creates a headless session, waits for it to finish, prints logs (`canfar logs`), and checks for `All checks passed.` Session cleanup is automatic. If the session stays **Pending** with **Start Time Unknown** for `CANFAR_PENDING_STUCK_SECS` (default 120), the script **fails fast** — see [HEADLESS_PENDING.md](HEADLESS_PENDING.md). Prune stuck Pending sessions so they do not eat the 3-session quota.
+
+Ray after push: `make test-canfar-ray TAG=26.07` (manager ≥**8 GiB** for Jobs). See [RAY.md](RAY.md) and [HEADLESS_PENDING.md](HEADLESS_PENDING.md).
 
 Verify checks include CADC/CANFAR CLIs (`canfar`, `cadcget`, `cadc-tap`, `vcp`) on **login shells** (`bash -l`), matching webterm tmux behaviour.
 

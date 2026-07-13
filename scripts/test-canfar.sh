@@ -217,6 +217,10 @@ fi
 echo "Session ID: ${SESSION_ID}"
 echo "Waiting for completion (poll every 10s)..."
 
+# Fail-fast when headless never acquires Start Time (platform admission hang).
+# See docs/HEADLESS_PENDING.md.
+PENDING_STUCK_SECS="${CANFAR_PENDING_STUCK_SECS:-120}"
+pending_since=""
 deadline=$((SECONDS + TIMEOUT))
 status=""
 while (( SECONDS < deadline )); do
@@ -230,11 +234,28 @@ while (( SECONDS < deadline )); do
             echo "Session ended with status: ${status}" >&2
             break
             ;;
+        Pending)
+            if [[ -z "${pending_since}" ]]; then
+                pending_since="${SECONDS}"
+            fi
+            start_info="$(canfar info "${SESSION_ID}" 2>/dev/null || true)"
+            if printf '%s\n' "${start_info}" | grep -q 'Start Time[[:space:]]\+Unknown' \
+                && (( SECONDS - pending_since >= PENDING_STUCK_SECS )); then
+                echo "" >&2
+                echo "Headless session still Pending with Start Time Unknown after ${PENDING_STUCK_SECS}s." >&2
+                echo "This usually indicates a Skaha headless-scheduling hang (not image CMD)." >&2
+                echo "See docs/HEADLESS_PENDING.md — use: make test-canfar-session IMAGE=<webterm|notebook|…>" >&2
+                echo "Prune stuck sessions so they do not consume the 3-session quota." >&2
+                canfar logs "${SESSION_ID}" 2>&1 | tail -20 >&2 || true
+                FAILURES=$((FAILURES + 1))
+                exit ${FAILURES}
+            fi
+            ;;
         "")
             # Session may not appear in ps immediately
             ;;
         *)
-            :
+            pending_since=""
             ;;
     esac
     sleep 10
