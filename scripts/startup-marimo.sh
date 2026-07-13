@@ -3,8 +3,6 @@
 # Open the file browser on TMP_SRC_DIR/notebooks and seed starter.py once.
 
 source /cadc/common-init.sh
-# shellcheck disable=SC1091
-source /opt/astroai/lib/skaha-proxy.sh
 
 # common-init cds to the session work root (TMP_SRC_DIR).
 NOTEBOOKS_DIR="$(pwd)/notebooks"
@@ -19,10 +17,9 @@ fi
 
 cd "${NOTEBOOKS_DIR}"
 
-BASE_URL_ARG=()
-if [[ -n "${skaha_sessionid:-}" ]]; then
-    BASE_URL_ARG=(--base-url "$(astroai_skaha_base_url "${skaha_sessionid}" contrib)")
-fi
+# CANFAR contributed ingress strips /session/contrib/<id> before forwarding
+# (same as webterm). Do not pass --base-url here — marimo would only serve under
+# that prefix and the proxied request for / would 404.
 
 exec marimo --log-level warn edit \
     --no-token \
@@ -30,5 +27,4 @@ exec marimo --log-level warn edit \
     --host 0.0.0.0 \
     --skip-update-check \
     --headless \
-    "${BASE_URL_ARG[@]}" \
     .

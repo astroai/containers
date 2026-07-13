@@ -55,7 +55,7 @@ git checkout -b my-change
 | Python / uv / pixi foundation | `dockerfiles/python/Dockerfile` | Yes — full stack |
 | Jupyter config | `config/jupyter_server_config.py` | Yes — `notebook` |
 | CADC client packages | `config/cadc-tools.txt` | Yes — `base` and downstream (unpinned) |
-| **`astroai-lab` CLI** | Vendored wheel in `vendor/canfar_lab-0.1.0-py3-none-any.whl` | Yes — `base` and downstream |
+| **`astroai-lab` CLI** | Vendored wheel in `vendor/astroai_lab-0.1.0-py3-none-any.whl` | Yes — `base` and downstream |
 | Ray deps / manager / worker | `config/ray-deps.txt`, `dockerfiles/ray-*`, `ray/`, `scripts/*ray*` | Yes — `make build-ray` |
 | VS Code UI defaults | `config/openvscode-settings.json` | Yes — `vscode` |
 | Bake graph, tags | `docker-bake.hcl`, `Makefile` | Depends on target |

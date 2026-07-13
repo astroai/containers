@@ -78,6 +78,9 @@ PY
 }
 
 bootstrap_canfar_registry_on_arc() {
+    if [[ "${CANFAR_SKIP_REGISTRY_BOOTSTRAP:-0}" == "1" ]]; then
+        return 1
+    fi
     if [[ -z "${CANFAR_REGISTRY__USERNAME:-}" || -z "${CANFAR_REGISTRY__SECRET:-}" ]]; then
         return 1
     fi
@@ -101,7 +104,8 @@ bootstrap_canfar_registry_on_arc() {
     [[ -n "${bootstrap_id}" ]] || bootstrap_id="$(canfar_ps_field name "${bootstrap_name}" id)"
     [[ -n "${bootstrap_id}" ]] || { echo "Could not parse bootstrap session ID." >&2; return 1; }
 
-    local deadline=$((SECONDS + 600))
+    local deadline=$((SECONDS + "${CANFAR_BOOTSTRAP_TIMEOUT:-120}"))
+    local pending_since="${SECONDS}"
     while (( SECONDS < deadline )); do
         status="$(canfar_ps_field id "${bootstrap_id}" status)"
         case "${status}" in
@@ -111,6 +115,18 @@ bootstrap_canfar_registry_on_arc() {
                 canfar logs "${bootstrap_id}" 2>&1 | tail -30 >&2 || true
                 canfar delete --force "${bootstrap_id}" 2>/dev/null || true
                 return 1
+                ;;
+            Pending)
+                # Headless jobs that never get Start Time stay Pending forever on
+                # some Skaha deployments — abort early instead of blocking 10m.
+                if (( SECONDS - pending_since > "${CANFAR_BOOTSTRAP_PENDING_MAX:-90}" )); then
+                    echo "Bootstrap still Pending after ${CANFAR_BOOTSTRAP_PENDING_MAX:-90}s — skipping." >&2
+                    canfar delete --force "${bootstrap_id}" 2>/dev/null || true
+                    return 1
+                fi
+                ;;
+            *)
+                pending_since="${SECONDS}"
                 ;;
         esac
         sleep 5
@@ -280,11 +296,15 @@ fi
 
 maybe_registry_auth
 load_docker_registry_auth || true
-if bootstrap_canfar_registry_on_arc; then
+if [[ "${CANFAR_SKIP_REGISTRY_BOOTSTRAP:-0}" == "1" ]]; then
+    echo "Skipping Harbor registry bootstrap (CANFAR_SKIP_REGISTRY_BOOTSTRAP=1)."
+elif bootstrap_canfar_registry_on_arc; then
     :
 elif [[ -z "${CANFAR_REGISTRY__USERNAME:-}" || -z "${CANFAR_REGISTRY__SECRET:-}" ]]; then
     echo "Warning: no Harbor registry credentials — headless worker/preflight may fail." >&2
     echo "Set CANFAR_REGISTRY__* or docker login ${REGISTRY}" >&2
+else
+    echo "Warning: registry bootstrap skipped/failed — relying on existing /arc/home canfar config." >&2
 fi
 
 if [[ -z "${MANAGER_URL}" ]]; then

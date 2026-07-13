@@ -1,4 +1,4 @@
-.PHONY: help build-all build/% build-ray push-all push/% push-ray test-local test-ray test-canfar test-canfar-ray test-canfar-ray-gpu clean clean-all
+.PHONY: help build-all build/% build-ray push-all push/% push-ray test-local test-ray test-canfar test-canfar-session test-canfar-ray test-canfar-ray-gpu clean clean-all
 
 SHELL := bash
 OWNER ?= astroai
@@ -24,6 +24,7 @@ help:
 	@echo "  make test-local         verify session images locally"
 	@echo "  make test-ray           Ray container + local cluster + UI tests"
 	@echo "  make test-canfar        post-push headless verify on CANFAR"
+	@echo "  make test-canfar-session post-push contributed/notebook HTTP smoke"
 	@echo "  make test-canfar-ray    CANFAR: manager UI + 2-worker cluster lifecycle"
 	@echo "  make test-canfar-ray-gpu CANFAR: 1 GPU worker cluster (production)"
 	@echo "  make clean              remove local $(IMAGE_PREFIX)/* images"
@@ -78,6 +79,10 @@ test-ray: build-ray build/base ## Ray image checks + local cluster join + UI
 
 test-canfar:
 	./scripts/test-canfar.sh $(or $(IMAGE),base) $(TAG)
+
+test-canfar-session: ## contributed/notebook Running + connectURL HTTP smoke
+	chmod +x scripts/test-canfar-session.sh
+	./scripts/test-canfar-session.sh $(or $(IMAGE),webterm) $(TAG)
 
 test-canfar-ray: ## CANFAR manager UI + 2-worker cluster lifecycle
 	chmod +x scripts/test-canfar-ray.sh
