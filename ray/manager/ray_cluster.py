@@ -98,19 +98,24 @@ def count_live_nodes(nodes: list[dict[str, Any]] | None = None) -> int:
     return sum(1 for node in nodes if node.get("Alive"))
 
 
-def wait_for_node_count(
+def wait_for_nodes(
     *,
     minimum: int,
     timeout_seconds: int,
     poll_seconds: int = 5,
-) -> int:
+) -> list[dict[str, Any]]:
+    """
+    Polls until a minimum number of live Ray nodes is reached, returning the nodes.
+    ⚡ Bolt Optimization: Returns the fetched nodes list so callers can reuse it,
+    preventing duplicate, expensive `list_ray_nodes()` subprocess calls.
+    Impact: Reduces polling loop time and duplicate fetches on success/timeout.
+    """
     import time
 
     deadline = time.monotonic() + timeout_seconds
-    count = count_live_nodes()
-    while time.monotonic() < deadline:
-        count = count_live_nodes()
-        if count >= minimum:
-            return count
+    while True:
+        nodes = list_ray_nodes()
+        count = count_live_nodes(nodes=nodes)
+        if count >= minimum or time.monotonic() >= deadline:
+            return nodes
         time.sleep(poll_seconds)
-    return count

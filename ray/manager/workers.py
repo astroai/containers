@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from canfar_ops import CanfarOps
-from ray_cluster import count_live_nodes, ray_address, wait_for_node_count
+from ray_cluster import count_live_nodes, ray_address, wait_for_nodes
 from settings import ManagerSettings, manager_pod_ip
 from state_store import StateStore, WorkerRecord, ClusterState
 from worker_logs import archive_session_logs
@@ -133,10 +133,11 @@ def launch_worker(
     store.upsert_worker(state, worker)
 
     target_nodes = nodes_before + 1
-    final_count = wait_for_node_count(
+    nodes = wait_for_nodes(
         minimum=target_nodes,
         timeout_seconds=min(300, settings.worker_launch_timeout_seconds),
     )
+    final_count = count_live_nodes(nodes=nodes)
     worker.ray_joined = final_count >= target_nodes
     worker.phase = "Ray Healthy" if worker.ray_joined else "Ray Unhealthy"
     if not worker.ray_joined:
