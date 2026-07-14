@@ -11,7 +11,9 @@ from ray_cluster import count_live_nodes, ray_address, wait_for_node_count
 from reconcile import reconcile_cluster
 from settings import ManagerSettings, manager_pod_ip
 from state_store import (
+    ACTIVE_CLUSTER_PHASES,
     PARTIAL_POLICIES,
+    TERMINAL_CLUSTER_PHASES,
     ClusterState,
     StateStore,
     TERMINAL_WORKER_PHASES,
@@ -69,6 +71,58 @@ def validate_cluster_create(
         preflight = (existing.preflight if existing else None) or {}
         if not preflight.get("passed"):
             raise RuntimeError("Network preflight has not passed. Run preflight first.")
+        pf_ip = str(preflight.get("manager_ip") or "")
+        current_ip = manager_pod_ip()
+        if not pf_ip or pf_ip != current_ip:
+            raise RuntimeError(
+                "Network preflight is stale for this manager pod. Run preflight again."
+            )
+
+
+def prepare_cluster_create(
+    *,
+    settings: ManagerSettings,
+    canfar: CanfarOps,
+    store: StateStore,
+) -> None:
+    """Destroy leftovers before writing a fresh Creating state."""
+    existing = store.load()
+    if existing and existing.workers:
+        _archive_worker_logs(canfar=canfar, store=store, state=existing)
+        destroy_all_workers(canfar=canfar, store=store, include_terminal=True)
+        store.log_event("cluster_create_pre_destroy", workers=len(existing.workers))
+    clean_orphaned_workers(settings=settings, canfar=canfar, store=store)
+
+
+def fail_create_cleanup(
+    *,
+    settings: ManagerSettings,
+    canfar: CanfarOps,
+    store: StateStore,
+    message: str,
+) -> ClusterCreateResult:
+    """Mark Failed and destroy every worker from a botched create."""
+    state = store.load()
+    if state:
+        _archive_worker_logs(canfar=canfar, store=store, state=state)
+        destroy_all_workers(canfar=canfar, store=store, include_terminal=True)
+        clean_orphaned_workers(settings=settings, canfar=canfar, store=store)
+        state = store.load() or state
+        for worker in state.workers:
+            if worker.phase not in TERMINAL_WORKER_PHASES:
+                worker.phase = "Stopped"
+        state.phase = "Failed"
+        store.save(state)
+        store.log_event("cluster_create_failed", message=message)
+    else:
+        state = ClusterState(
+            cluster_id=settings.cluster_id,
+            manager_ip=manager_pod_ip(),
+            ray_address=ray_address(),
+            phase="Failed",
+        )
+        store.save(state)
+    return ClusterCreateResult(state=state, success=False, message=message)
 
 
 def create_cluster(
@@ -81,9 +135,38 @@ def create_cluster(
 ) -> ClusterCreateResult:
     validate_cluster_create(canfar=canfar, store=store, req=req)
 
+    try:
+        return _create_cluster_body(
+            settings=settings,
+            canfar=canfar,
+            store=store,
+            heartbeat_path=heartbeat_path,
+            req=req,
+        )
+    except Exception as exc:  # noqa: BLE001 — never leave Creating + live workers
+        return fail_create_cleanup(
+            settings=settings,
+            canfar=canfar,
+            store=store,
+            message=str(exc),
+        )
+
+
+def _create_cluster_body(
+    *,
+    settings: ManagerSettings,
+    canfar: CanfarOps,
+    store: StateStore,
+    heartbeat_path: str,
+    req: ClusterCreateRequest,
+) -> ClusterCreateResult:
     existing = store.load()
     min_joined = req.min_joined if req.min_joined is not None else req.worker_count
     min_joined = max(1, min(min_joined, req.worker_count))
+
+    prepare_cluster_create(settings=settings, canfar=canfar, store=store)
+    # Keep preflight from before destroy (validate already checked IP).
+    preflight = existing.preflight if existing else None
 
     state = ClusterState(
         cluster_id=settings.cluster_id,
@@ -94,7 +177,7 @@ def create_cluster(
         worker_count=req.worker_count,
         min_joined=min_joined,
         partial_policy=req.partial_policy,
-        preflight=(existing.preflight if existing else None),
+        preflight=preflight,
         workers=[],
     )
     store.save(state)
@@ -159,13 +242,10 @@ def create_cluster(
 
         failed = [w for w in state.workers if w.phase == "CANFAR Failed"]
         if failed and req.partial_policy == "fail_and_cleanup":
-            stop_cluster(canfar=canfar, store=store, force=True)
-            state = store.load() or state
-            state.phase = "Failed"
-            store.save(state)
-            return ClusterCreateResult(
-                state=state,
-                success=False,
+            return fail_create_cleanup(
+                settings=settings,
+                canfar=canfar,
+                store=store,
                 message="Worker startup failed; cluster cleaned up",
             )
 
@@ -176,13 +256,10 @@ def create_cluster(
             )
             if not still_starting and joined < req.worker_count:
                 if req.partial_policy == "fail_and_cleanup":
-                    stop_cluster(canfar=canfar, store=store, force=True)
-                    state = store.load() or state
-                    state.phase = "Failed"
-                    store.save(state)
-                    return ClusterCreateResult(
-                        state=state,
-                        success=False,
+                    return fail_create_cleanup(
+                        settings=settings,
+                        canfar=canfar,
+                        store=store,
                         message=f"Only {joined}/{req.worker_count} joined; cleaned up",
                     )
                 state.phase = "Degraded"
@@ -211,16 +288,18 @@ def create_cluster(
         state.phase = "Degraded"
         success = True
         message = f"Timeout with partial join: {joined}/{req.worker_count}"
-    elif req.partial_policy == "fail_and_cleanup":
-        stop_cluster(canfar=canfar, store=store, force=True)
-        state = store.load() or state
-        state.phase = "Failed"
-        success = False
-        message = "Startup timeout; cluster cleaned up"
     else:
-        state.phase = "Failed"
-        success = False
-        message = f"Startup timeout: {joined}/{req.worker_count} joined, nodes={final_nodes}"
+        # Always destroy workers on unsuccessful create (all partial policies).
+        return fail_create_cleanup(
+            settings=settings,
+            canfar=canfar,
+            store=store,
+            message=(
+                "Startup timeout; cluster cleaned up"
+                if req.partial_policy == "fail_and_cleanup"
+                else f"Startup timeout: {joined}/{req.worker_count} joined, nodes={final_nodes}"
+            ),
+        )
 
     store.save(state)
     store.log_event("cluster_create_done", phase=state.phase, joined=joined, success=success)
@@ -246,7 +325,7 @@ def stop_cluster(
     state = store.load() or state
     _archive_worker_logs(canfar=canfar, store=store, state=state)
 
-    destroy_all_workers(canfar=canfar, store=store)
+    destroy_all_workers(canfar=canfar, store=store, include_terminal=True)
     state = store.load() or state
 
     deadline = time.monotonic() + wait_timeout
@@ -353,25 +432,124 @@ def clean_orphaned_workers(
     canfar: CanfarOps,
     store: StateStore,
 ) -> list[dict[str, Any]]:
-    prefix = f"ray-w-{settings.cluster_id}"
-    retry_prefix = f"ray-retry-{settings.cluster_id}"
+    """Destroy leftover headless Ray sessions that should not consume quota.
+
+    When the cluster is idle/failed/stopped (or missing), destroy both untracked
+    and tracked matching sessions. While Creating/Running/Degraded/Stopping,
+    only destroy untracked sessions (name prefixes).
+
+    When CANFAR auth is unavailable (local smoke without credentials), skip
+    remote listing and only destroy tracked sessions from state.
+    """
     state = store.load()
+    phase = state.phase if state else "Idle"
+    active = phase in ACTIVE_CLUSTER_PHASES
     known = {w.session_id for w in state.workers} if state else set()
 
-    destroyed: list[dict[str, Any]] = []
-    for row in canfar.list_headless_sessions(name_prefix=prefix):
-        sid = str(row.get("id") or "")
-        if sid and sid not in known:
-            ok = canfar.destroy(sid)
-            destroyed.append({"session_id": sid, "name": row.get("name"), "destroyed": ok})
-    for row in canfar.list_headless_sessions(name_prefix=retry_prefix):
-        sid = str(row.get("id") or "")
-        if sid and sid not in known:
-            ok = canfar.destroy(sid)
-            destroyed.append({"session_id": sid, "name": row.get("name"), "destroyed": ok})
+    prefixes = [
+        f"ray-w-{settings.cluster_id}",
+        f"ray-retry-{settings.cluster_id}",
+        f"ray-preflight-{settings.cluster_id}",
+        # Legacy / short probes if cluster id was truncated in the name.
+        "ray-preflight-",
+    ]
 
-    store.log_event("orphan_cleanup", count=len(destroyed))
+    destroyed: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    can_list = False
+    try:
+        auth = canfar.auth_status()
+        can_list = bool(auth.authenticated)
+    except Exception as exc:  # noqa: BLE001 — local runs without CANFAR certs
+        store.log_event("orphan_cleanup_skip_list", error=str(exc))
+        can_list = False
+
+    if can_list:
+        for prefix in prefixes:
+            try:
+                rows = canfar.list_headless_sessions(name_prefix=prefix)
+            except Exception as exc:  # noqa: BLE001 — do not block manager startup
+                store.log_event("orphan_cleanup_list_error", prefix=prefix, error=str(exc))
+                continue
+            for row in rows:
+                sid = str(row.get("id") or "")
+                if not sid or sid in seen:
+                    continue
+                name = str(row.get("name") or "")
+                if prefix == "ray-preflight-" and not name.startswith(
+                    f"ray-preflight-{settings.cluster_id}"
+                ):
+                    if active:
+                        continue
+                if active and sid in known:
+                    continue
+                ok = canfar.destroy(sid)
+                seen.add(sid)
+                destroyed.append({"session_id": sid, "name": name, "destroyed": ok})
+
+    # Terminal cluster: also force-destroy tracked sessions still listed.
+    if state and phase in TERMINAL_CLUSTER_PHASES and state.workers:
+        for worker in list(state.workers):
+            if not worker.session_id or worker.session_id in seen:
+                continue
+            ok = canfar.destroy(worker.session_id)
+            seen.add(worker.session_id)
+            destroyed.append(
+                {
+                    "session_id": worker.session_id,
+                    "name": worker.name,
+                    "destroyed": ok,
+                    "tracked": True,
+                }
+            )
+            worker.phase = "Stopped"
+            store.upsert_worker(state, worker)
+
+    store.log_event("orphan_cleanup", count=len(destroyed), phase=phase)
     return destroyed
+
+
+def gc_terminal_cluster_workers(
+    *,
+    settings: ManagerSettings,
+    canfar: CanfarOps,
+    store: StateStore,
+) -> ClusterState | None:
+    """On manager startup: reconcile and destroy ghosts for terminal phases."""
+    state = store.load()
+    if not state:
+        try:
+            clean_orphaned_workers(settings=settings, canfar=canfar, store=store)
+        except Exception as exc:  # noqa: BLE001 — never block uvicorn startup
+            store.log_event("startup_gc_error", error=str(exc))
+        return None
+
+    try:
+        state = reconcile_cluster(canfar=canfar, store=store, state=state) or state
+    except Exception as exc:  # noqa: BLE001 — local smoke without CANFAR
+        store.log_event("startup_reconcile_error", error=str(exc))
+
+    if state.phase in TERMINAL_CLUSTER_PHASES:
+        if state.workers:
+            try:
+                _archive_worker_logs(canfar=canfar, store=store, state=state)
+            except Exception:  # noqa: BLE001
+                pass
+            destroy_all_workers(canfar=canfar, store=store, include_terminal=True)
+            state = store.load() or state
+            for worker in state.workers:
+                worker.phase = "Stopped"
+            if state.phase not in TERMINAL_CLUSTER_PHASES:
+                state.phase = "Stopped"
+            store.save(state)
+        try:
+            clean_orphaned_workers(settings=settings, canfar=canfar, store=store)
+        except Exception as exc:  # noqa: BLE001
+            store.log_event("startup_gc_error", error=str(exc))
+        return store.load()
+
+    # Active cluster (manager restart mid-run): reconcile only; do not destroy.
+    return state
 
 
 def _pending_workers(state: ClusterState) -> list[WorkerRecord]:

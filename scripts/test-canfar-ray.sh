@@ -140,7 +140,10 @@ bootstrap_canfar_registry_on_arc() {
 }
 
 create_manager_session() {
-    canfar create --name "${SESSION_NAME}" contributed "${FULL_IMAGE}" 2>&1
+    local cores="${RAY_MANAGER_CORES:-2}"
+    local ram="${RAY_MANAGER_RAM:-8}"
+    canfar create --name "${SESSION_NAME}" --cpu "${cores}" --memory "${ram}" \
+        contributed "${FULL_IMAGE}" 2>&1
 }
 
 curl_auth=( )
@@ -277,11 +280,46 @@ for row in rows:
 }
 
 cleanup() {
+    if [[ -n "${MANAGER_URL:-}" ]]; then
+        echo ""
+        echo "Stopping cluster / cleaning orphans (best effort)..."
+        api_curl -X POST "${MANAGER_URL}/api/v1/cluster/stop" >/dev/null 2>&1 || true
+        api_curl -X POST "${MANAGER_URL}/api/v1/cluster/clean-orphans" >/dev/null 2>&1 || true
+        api_curl -X POST "${MANAGER_URL}/api/v1/workers/destroy-all" >/dev/null 2>&1 || true
+    fi
     if [[ -n "${SESSION_ID}" && -z "${RAY_MANAGER_URL:-}" ]]; then
         echo ""
         echo "Deleting manager session ${SESSION_ID}..."
         canfar delete --force "${SESSION_ID}" 2>/dev/null || true
     fi
+    # Prune leftover headless workers from this run if manager API was unreachable.
+    canfar ps --json 2>/dev/null | python3 -c "
+import json, sys
+raw = sys.stdin.read()
+for m in ('[', '{'):
+    i = raw.find(m)
+    if i >= 0:
+        raw = raw[i:]
+        break
+try:
+    rows = json.loads(raw)
+except Exception:
+    raise SystemExit(0)
+if isinstance(rows, dict):
+    rows = [rows]
+ids = []
+for r in rows:
+    name = str(r.get('name') or '')
+    kind = str(r.get('type') or r.get('kind') or '')
+    status = str(r.get('status') or '')
+    if status not in ('Running', 'Pending'):
+        continue
+    if 'ray-w-' in name or 'ray-preflight-' in name or 'ray-retry-' in name:
+        sid = r.get('id')
+        if sid:
+            ids.append(sid)
+print(' '.join(ids))
+" 2>/dev/null | xargs -r canfar delete --force 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -429,7 +467,7 @@ print(json.dumps(d.get('preflight') or {}))
         if ! printf '%s' "${PF_JSON}" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('passed') else 1)"; then
             if printf '%s' "${PF_JSON}" | grep -qiE 'Pending|Start Time Unknown|probe status=Pending'; then
                 echo "Network preflight failed — headless probe stayed Pending (Skaha headless hang)." >&2
-                echo "See docs/HEADLESS_PENDING.md. Prune stuck headless sessions; retry later or set CANFAR_RAY_SKIP_PREFLIGHT=1 for UI-only." >&2
+                echo "See docs/OPERATORS.md (platform notes). Prune stuck headless sessions; retry later or set CANFAR_RAY_SKIP_PREFLIGHT=1 for UI-only." >&2
             elif printf '%s' "${PF_JSON}" | grep -q "session-to-session network isolation"; then
                 echo "Network preflight failed — likely CANFAR platform networking, not an image bug." >&2
                 echo "Set CANFAR_RAY_SKIP_PREFLIGHT=1 to run remaining checks, or ask ops to allow cross-session Ray ports." >&2

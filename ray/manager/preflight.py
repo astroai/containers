@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import os
 import socket
 import time
 from dataclasses import dataclass
 from typing import Any
 
-from canfar_ops import CanfarOps, manager_to_worker_probe, parse_probe_logs
+from canfar_ops import CanfarOps, parse_probe_logs
 from settings import ManagerSettings, manager_pod_ip, ray_probe_ports
 from state_store import ClusterState, StateStore
 
@@ -128,13 +127,9 @@ def run_preflight(
             "Completed",
         }
 
-        mgr_checks: list[dict[str, str]] = []
-        if probe_ok and worker_ip:
-            sample_ports = [
-                int(os.environ.get("RAY_NODE_MANAGER_PORT", "6380")),
-                int(os.environ.get("RAY_OBJECT_MANAGER_PORT", "6381")),
-            ]
-            mgr_checks = manager_to_worker_probe(manager_ip, worker_ip, sample_ports)
+        # Gate solely on worker→manager TCP from the probe. Do not sample
+        # manager→worker ports on the probe pod — it never listens on Ray ports,
+        # so those checks were always FAIL noise.
 
         message = None
         if not probe_ok:
@@ -144,18 +139,15 @@ def run_preflight(
                     f"{message}; headless probe could not reach manager Ray ports on "
                     f"{manager_ip}. Manager self-check passed — likely CANFAR "
                     "session-to-session network isolation between contributed and "
-                    "headless sessions (see docs/ray-build-plan.md §18)."
+                    "headless sessions (see docs/RAY.md (networking))."
                 )
-        if probe_ok and mgr_checks and not all(c["result"] == "PASS" for c in mgr_checks):
-            note = "manager->worker sample checks failed (non-fatal for preflight)"
-            message = f"{message}; {note}" if message else note
 
         report = PreflightReport(
             passed=probe_ok,
             manager_ip=manager_ip,
             worker_ip=worker_ip,
             worker_to_manager=worker_checks,
-            manager_to_worker=mgr_checks,
+            manager_to_worker=[],
             probe_session_id=probe_id,
             probe_logs_path=probe_logs_path,
             message=message,

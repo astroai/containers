@@ -8,7 +8,17 @@ if [[ -f /etc/profile.d/astroai.sh ]]; then
     source /etc/profile.d/astroai.sh
 fi
 
-export RAY_CLUSTER_ID="${RAY_CLUSTER_ID:-default}"
+export RAY_CLUSTER_ID="${RAY_CLUSTER_ID:-}"
+if [[ -z "${RAY_CLUSTER_ID}" ]]; then
+    # Bind state to this manager session so /arc/home does not reuse another
+    # pod's clusters/default leftovers across contributed manager launches.
+    _sid="${skaha_sessionid:-${SKAHA_SESSIONID:-}}"
+    if [[ -n "${_sid}" ]]; then
+        export RAY_CLUSTER_ID="mgr-${_sid}"
+    else
+        export RAY_CLUSTER_ID="default"
+    fi
+fi
 # Jobs / Dashboard API is local to this pod — RayExecutor() reads this.
 export ASTROAI_RAY_JOBS_ADDRESS="${ASTROAI_RAY_JOBS_ADDRESS:-http://127.0.0.1:8265}"
 # shellcheck disable=SC1091

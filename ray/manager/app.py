@@ -18,6 +18,7 @@ from cluster import (
     ClusterCreateRequest,
     clean_orphaned_workers,
     create_cluster,
+    gc_terminal_cluster_workers,
     retry_worker,
     stop_cluster,
     validate_cluster_create,
@@ -90,9 +91,8 @@ def startup() -> None:
             stderr=subprocess.STDOUT,
             text=True,
         )
-    state = _store.load()
-    if state and state.phase not in {"Stopped", "Failed", "Idle"}:
-        reconcile_cluster(canfar=_canfar, store=_store, state=state)
+    # Always reconcile; destroy ghosts when home-persisted state is terminal.
+    gc_terminal_cluster_workers(settings=_settings, canfar=_canfar, store=_store)
 
 
 @app.get("/healthz")

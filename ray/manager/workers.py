@@ -66,6 +66,11 @@ def launch_worker(
         preflight = (state.preflight if state else None) or {}
         if not preflight.get("passed"):
             raise RuntimeError("Network preflight has not passed. Run preflight first.")
+        pf_ip = str(preflight.get("manager_ip") or "")
+        if not pf_ip or pf_ip != manager_pod_ip():
+            raise RuntimeError(
+                "Network preflight is stale for this manager pod. Run preflight again."
+            )
 
     nodes_before = count_live_nodes()
     tag_safe = time.strftime("%Y%m%d%H%M%S")
@@ -189,17 +194,35 @@ def destroy_worker(
     return {"session_id": session_id, "destroyed": ok}
 
 
-def destroy_all_workers(*, canfar: CanfarOps, store: StateStore) -> list[dict[str, Any]]:
+def destroy_all_workers(
+    *,
+    canfar: CanfarOps,
+    store: StateStore,
+    include_terminal: bool = False,
+) -> list[dict[str, Any]]:
+    """Destroy sessions for workers listed in state.
+
+    By default skips workers already in Stopped/Stopping. Pass
+    ``include_terminal=True`` to destroy every tracked session_id
+    (startup GC / recreate / Failed cleanup — workers may still be
+    Running or Pending on CANFAR even when state says Stopped).
+    """
     state = store.load()
     if not state:
         return []
     results = []
     for worker in list(state.workers):
-        if worker.phase in {"Stopped", "Stopping"}:
+        if not include_terminal and worker.phase in {"Stopped", "Stopping"}:
+            continue
+        if not worker.session_id:
             continue
         results.append(destroy_worker(canfar=canfar, store=store, session_id=worker.session_id))
-        worker.phase = "Stopped"
-        store.upsert_worker(state, worker)
+        state = store.load() or state
+        for updated in state.workers:
+            if updated.session_id == worker.session_id:
+                updated.phase = "Stopped"
+                store.upsert_worker(state, updated)
+                break
     return results
 
 
