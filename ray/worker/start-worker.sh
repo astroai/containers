@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Ray worker entrypoint — env contract in docs/ray-build-plan.md §7.
+# Ray worker entrypoint — env contract in docs/RAY.md.
 
 set -o pipefail
 

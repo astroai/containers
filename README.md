@@ -1,10 +1,39 @@
-> **Repository:** `astroai-containers` (formerly `containers`). Harbor images remain `images.canfar.net/astroai/*`. Session CLI is `astroai-lab`.
+# AstroAI containers
 
-# AstroAI Containers
-
-Lean CANFAR session images for astronomy and ML development. Published to `images.canfar.net/astroai/`.
+Session images for astronomy and ML on the
+[CANFAR Science Platform](https://www.opencadc.org/canfar/).
+Images publish to Harbor as `images.canfar.net/astroai/<image>:<tag>`.
 
 Licensed under [BSD-2-Clause](LICENSE).
+
+```mermaid
+flowchart TB
+  subgraph astroai [AstroAI]
+    Imgs["Harbor: images.canfar.net/astroai/*"]
+    Lab["astroai-lab workbench CLI"]
+    WL["astroai-workload Ray Jobs"]
+  end
+  subgraph canfar [CANFAR]
+    Portal[Science Portal]
+    Skaha[Skaha / sessions /arc /scratch]
+    CLI["canfar CLI"]
+  end
+  Portal --> Imgs
+  CLI --> Skaha
+  Imgs --> Skaha
+  Lab --> Skaha
+  WL --> Imgs
+```
+
+## Names at a glance
+
+| Name | Meaning |
+|------|---------|
+| **AstroAI** | This product: GitHub [`astroai`](https://github.com/astroai), Harbor project `astroai`, images and tools |
+| **CANFAR** | Hosting platform: portal, Skaha, auth, `/arc`, scheduling |
+| **`canfar`** | Platform CLI — login, create/list/delete sessions |
+| **`astroai-lab`** | In-session workbench (vendored into these images) |
+| **`images.canfar.net/astroai/*`** | AstroAI images on CANFAR Harbor (host ≠ product name) |
 
 ## Sessions
 
@@ -12,89 +41,79 @@ Licensed under [BSD-2-Clause](LICENSE).
 |-------|---------|------------|
 | `webterm` | Browser terminal (ttyd + tmux) | Contributed |
 | `vscode` | Browser IDE (OpenVSCode Server) | Contributed |
-| `notebook` | JupyterLab | **Notebook** |
+| `notebook` | JupyterLab | Notebook |
 | `marimo` | Reactive notebooks | Contributed |
-| `base` | Headless parent (CI, batch, not a portal session) | — |
-| `ray-manager` | Distributed Ray control UI ([docs/RAY.md](docs/RAY.md)) | Contributed |
-| `ray-worker` | Ray worker CPU or GPU (launched by manager, not portal) | Headless |
+| `base` | Headless parent (CI / batch) | — |
+| `ray-manager` | Ray head + control panel + Dashboard ([RAY.md](docs/RAY.md)) | Contributed |
+| `ray-worker` | Ray worker CPU or GPU (manager-launched) | Headless |
 
 ## Documentation
 
 | Doc | Audience |
 |-----|----------|
-| [docs/USAGE.md](docs/USAGE.md) | **Session users** — AstroAI images, storage, GPU, CADC, workflows |
-| [astroai-lab USAGE](https://github.com/astroai/astroai-lab/blob/main/docs/USAGE.md) | **`astroai-lab` CLI** — commands, env, agents |
-| [docs/RAY.md](docs/RAY.md) | **Ray clusters** — manager + worker images (prototype) |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | **Developers** — clone, build, test, open PRs |
-| [docs/OPERATORS.md](docs/OPERATORS.md) | **AstroAI maintainers** — build, push, register images on CANFAR |
+| [docs/USAGE.md](docs/USAGE.md) | Session users — first session, storage, tools |
+| [astroai-lab USAGE](https://github.com/astroai/astroai-lab/blob/main/docs/USAGE.md) | `astroai-lab` CLI detail |
+| [docs/RAY.md](docs/RAY.md) | Ray clusters — manager + workers |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Developers — clone, build, test, PRs |
+| [docs/OPERATORS.md](docs/OPERATORS.md) | Maintainers — push, register, smoke tests |
 
 In-session: `astroai-lab guide` · `less /opt/astroai/USAGE.md`
 
-## Build
+## Build and test
 
-Requires Docker with buildx. See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full dev loop.
-
-```bash
-make build-all          # full stack
-make build/vscode       # one image (+ parents)
-docker buildx bake      # direct bake
-make clean              # remove local images.canfar.net/astroai/*
-make clean-all          # clean + prune buildx cache
-```
-
-## Local test
+Requires Docker with buildx. Full loop: [CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ```bash
-make build/webterm
-./scripts/test-local.sh webterm 5000
-
-make build/notebook
-./scripts/test-local.sh notebook 8888
+make build-all              # session stack
+make build-ray              # ray-manager + ray-worker
+make build/vscode           # one image (+ parents)
+make test-local             # local smokes
+make test-ray               # local Ray cluster + UI
 ```
 
-## Push to Harbor
+## Push (maintainers)
 
-Maintainers only — see [OPERATORS.md](docs/OPERATORS.md). The `astroai` Harbor project is **public** (anonymous pull); push still needs `docker login`.
+See [OPERATORS.md](docs/OPERATORS.md). The `astroai` Harbor project is **public**
+(anonymous pull); push still needs `docker login images.canfar.net`.
 
 ```bash
-make build/vscode
-make push/vscode TAG=26.06
+make push/vscode TAG=26.07
+make push-all TAG=26.07
+make push-ray TAG=26.07
 ```
+
+Default `TAG` is current UTC `YY.MM` (for example `26.07`).
 
 ## Layout
 
 ```
-dockerfiles/
-  python/       # 3.13-slim + uv + pixi
-  base/         # headless: git, monitoring, CLI, astroai-lab
-  webterm/      # contributed: ttyd + tmux
-  vscode/       # contributed: OpenVSCode Server
-  notebook/     # notebook: JupyterLab + ipykernel (port 8888)
-  marimo/       # contributed: marimo
-  ray-base/     # build-only: base + Ray 3.12 venv
-  ray-manager/  # contributed: Ray head + UI :5000
-  ray-worker/
-ray/            # manager app + worker scripts
-examples/ray/
-scripts/
-  startup-*.sh  # session + ray-manager entrypoints
-  test-ray-*.sh
-  lib/          # profile helpers (env paths, UI, skaha proxy)
-docs/
-  USAGE.md      # user-facing session guide
-  RAY.md        # distributed Ray (manager + workers)
-  CONTRIBUTING.md
-  OPERATORS.md
+dockerfiles/   python → base → session images; ray-base → manager/worker
+ray/           manager FastAPI app + worker helpers
+scripts/       startup-*.sh, test-*.sh, profile
+vendor/        astroai-lab wheel baked into base
+docs/          USAGE, RAY, OPERATORS, CONTRIBUTING
+examples/ray/  container-local Ray smokes
 ```
 
 ## Design
 
-- **Same images for CPU and GPU** — pick the node in the portal; CUDA libs via pixi/uv in the project.
-- **Minimal bake stack** — `python` → `base` → four session images; Ray adds `ray-base` → `ray-manager` / `ray-worker` (same `TAG` as `base`); heavy software via pixi or [CVMFS on CANFAR nodes](https://opencadc.github.io/canfar/platform/cvmfs/) ([source](https://github.com/opencadc/canfar/blob/main/docs/platform/cvmfs.md)).
-- **Quick feedback loops** — **`TMP_SRC_DIR`** (`/srcdir`) for code, **`TMP_SCRATCH_DIR`** (`/scratch`) for data and package caches, `astroai-lab init` / `astroai-lab resume`. Keep `/arc/home` tiny (auth, MCP, lockfile saves only).
-- **Skaha session types** — Contributed (5000) for webterm/vscode/marimo; Notebook (8888) for notebook.
-- **Authentication** — Jupyter, VS Code, Marimo, and ttyd run without built-in auth. CANFAR Skaha terminates TLS and enforces portal login. Do not expose these images on the public internet without an authenticating reverse proxy.
+- **Same images for CPU and GPU** — choose the node in the portal; CUDA/ML stacks via pixi/uv in the project.
+- **Bake graph:** `python` → `base` → `webterm` / `vscode` / `notebook` / `marimo`; Ray adds `ray-base` → `ray-manager` / `ray-worker` (same `TAG` as `base`).
+- **Fast session disks:** `TMP_SRC_DIR` (`/srcdir`) for code, `TMP_SCRATCH_DIR` (`/scratch`) for data and caches; persist with `astroai-lab` to `/arc`.
+- **Skaha types:** Contributed listen on **5000**; Notebook on **8888**.
+- **Auth at the edge:** Session UIs trust CANFAR TLS + portal login. Use these images only behind an authenticating reverse proxy.
+
+Heavy site software: [CVMFS on CANFAR](https://github.com/opencadc/canfar/blob/main/docs/platform/cvmfs.md).
+
+## Related repos
+
+| Repo | Role |
+|------|------|
+| [astroai-lab](https://github.com/astroai/astroai-lab) | In-session CLI |
+| [astroai-workload](https://github.com/astroai/astroai-workload) | Ray Jobs Python helpers |
+| [opencadc/canfar](https://github.com/opencadc/canfar) | Platform client |
+| [opencadc/science-platform](https://github.com/opencadc/science-platform) | Skaha / Helm (platform team) |
 
 ## Contributing
 
-Pull requests welcome — see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+Pull requests welcome — [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).

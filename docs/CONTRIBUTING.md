@@ -1,93 +1,86 @@
 # Contributing
 
-Thanks for helping improve AstroAI session images. Contributions are welcome via GitHub pull requests — docs, scripts, Dockerfiles, and config.
+Thanks for helping improve AstroAI session images. Contributions are welcome via
+GitHub pull requests — docs, scripts, Dockerfiles, and config.
 
 Licensed under [BSD-2-Clause](../LICENSE).
 
 ## Documentation map
 
-| Doc | Who it's for |
-|-----|----------------|
-| [USAGE.md](USAGE.md) | **Session users** — working on CANFAR (`TMP_SRC_DIR` / `TMP_SCRATCH_DIR`, pixi/uv, GPU, AI CLIs) |
-| **CONTRIBUTING.md** (this file) | **Developers** — changing this repo |
-| [OPERATORS.md](OPERATORS.md) | **AstroAI maintainers** — build, push, register images on CANFAR |
-| [RAY.md](RAY.md) | **Ray clusters** — manager + worker images |
-| [README.md](../README.md) | Repo overview, build targets, design principles |
+| Doc | Audience |
+|-----|----------|
+| [USAGE.md](USAGE.md) | Session users |
+| **CONTRIBUTING.md** (this file) | Developers changing this repo |
+| [OPERATORS.md](OPERATORS.md) | Maintainers — push / register / smoke |
+| [RAY.md](RAY.md) | Ray manager + workers |
+| [README.md](../README.md) | Overview and make targets |
 
-In a running session: `less /opt/astroai/USAGE.md` (after the next image release).
+In a session: `less /opt/astroai/USAGE.md`.
 
 ## Get the repo
-
-From an AstroAI session or any machine with Git and [GitHub CLI](https://cli.github.com/):
 
 ```bash
 gh auth login
 gh repo clone astroai/astroai-containers
-cd containers
+cd astroai-containers
 ```
 
-Fork first if you don't have write access:
+Fork workflow:
 
 ```bash
 gh repo fork astroai/astroai-containers --clone
-cd containers
+cd astroai-containers
 git checkout -b my-change
 ```
 
-## Prerequisites for image work
+## Prerequisites
 
-- **Docker** with **buildx** (`docker buildx version`)
-- Enough disk for multi-stage builds (~several GB)
-- **Harbor push** is maintainer-only — you can build and test locally without registry access
+- **Docker** with **buildx**
+- Disk for multi-stage builds
+- Harbor push is maintainer-only — local build/test needs no registry write access
 
 ## What to change where
 
-| You want to… | Edit | Rebuild needed |
-|--------------|------|----------------|
+| You want to… | Edit | Rebuild |
+|--------------|------|---------|
 | User-facing session guide | `docs/USAGE.md` | Yes — copied into `base` as `/opt/astroai/USAGE.md` |
-| Contributor / dev workflow | `docs/CONTRIBUTING.md` | No (GitHub only) |
+| Contributor / dev workflow | `docs/CONTRIBUTING.md` | No |
 | Portal registration, Harbor | `docs/OPERATORS.md` | No |
-| Shell env, caches, `uv`/`pixi` paths | `scripts/astroai-profile.sh` | Yes — `base` and downstream |
-| Session startup (`TMP_SRC_DIR`, welcome) | `scripts/common-init.sh` | Yes — session image |
-| User commands (`astroai-*`) | `scripts/astroai-*`, `scripts/lib/*` | Yes — `base` |
-| Session entrypoints | `scripts/startup-*.sh`, `scripts/skaha-startup-*.sh` | Yes — that session image |
-| System packages, `gh`, monitoring CLIs | `dockerfiles/base/Dockerfile` | Yes — `base` + downstream |
-| Python / uv / pixi foundation | `dockerfiles/python/Dockerfile` | Yes — full stack |
-| Jupyter config | `config/jupyter_server_config.py` | Yes — `notebook` |
-| CADC client packages | `config/cadc-tools.txt` | Yes — `base` and downstream (unpinned) |
-| **`astroai-lab` CLI** | Vendored wheel in `vendor/astroai_lab-0.1.0-py3-none-any.whl` | Yes — `base` and downstream |
-| Ray deps / manager / worker | `config/ray-deps.txt`, `dockerfiles/ray-*`, `ray/`, `scripts/*ray*` | Yes — `make build-ray` |
-| VS Code UI defaults | `config/openvscode-settings.json` | Yes — `vscode` |
-| Bake graph, tags | `docker-bake.hcl`, `Makefile` | Depends on target |
+| Shell env, caches, `uv`/`pixi` paths | `scripts/astroai-profile.sh` | Yes — `base`+ |
+| Session startup | `scripts/common-init.sh`, `scripts/startup-*.sh` | Yes |
+| System packages | `dockerfiles/base/Dockerfile` | Yes — `base`+ |
+| Python / uv / pixi foundation | `dockerfiles/python/Dockerfile` | Full stack |
+| Jupyter config | `config/jupyter_server_config.py` | `notebook` |
+| CADC client list | `config/cadc-tools.txt` | `base`+ |
+| **`astroai-lab` CLI** | `vendor/astroai_lab-*.whl` | `base`+ |
+| Ray | `config/ray-deps.txt`, `dockerfiles/ray-*`, `ray/`, `scripts/*ray*` | `make build-ray` |
+| Bake graph, tags | `docker-bake.hcl`, `Makefile` | Depends |
 
-**Lean image rule:** don't add compilers, CUDA, or science stacks to Dockerfiles — those belong in user pixi/uv projects (document in USAGE.md instead).
+Keep Dockerfiles lean — compilers, CUDA, and science stacks belong in user
+pixi/uv projects (document in USAGE.md).
 
 ## Local build and test
 
 ```bash
-make build/webterm          # one image (+ python → base parents)
-make build-all              # full stack
-
-# smoke test as non-root user with fake /arc, /srcdir, and /scratch
+make build/webterm
+make build-all
 ./scripts/test-local.sh webterm 5000
 ./scripts/test-local.sh notebook 8888
 ```
 
-After changing `base` or `scripts/astroai-profile.sh`, verify uv paths:
+After profile or base changes:
 
 ```bash
 ./scripts/test-local.sh webterm 5000
-# in the container:
+# inside container:
 source /etc/profile.d/astroai.sh
-astroai-lab doctor                   # paths, caches, uv python dir under $HOME
+astroai-lab doctor
 uv run python -c "print('ok')"
 ```
 
-Rebuild the **parent** when you change shared layers — e.g. profile changes need `make build/base` (or `build/webterm` which pulls parents).
+## Refresh the vendored `astroai-lab` wheel
 
-## Refreshing the vendored `astroai-lab` wheel
-
-Session images install `astroai-lab` from the wheel in `vendor/`, not from PyPI. After pulling upstream [astroai/astroai-lab](https://github.com/astroai/astroai-lab) (package: `astroai-lab`):
+Images install from `vendor/`, not PyPI:
 
 ```bash
 cd ../astroai-lab
@@ -96,38 +89,36 @@ uv build
 cp dist/astroai_lab-0.1.0-py3-none-any.whl ../astroai-containers/vendor/
 cd ../astroai-containers
 make build-all BUILD_TAG=local
-make test-ray BUILD_TAG=local
 make test-local BUILD_TAG=local
+make test-ray BUILD_TAG=local
 ```
 
-Commit the updated wheel with any doc changes in this repo.
+## Writable CADC venv
 
-## Writable CADC venv (in-session upgrades)
+`/opt/astroai/venv/cadc` is writable so users can run `upgrade-cadc-tools.sh` or
+`uv pip install --python /opt/astroai/venv/cadc …` for this session only.
+Project deps use pixi/uv under `TMP_SRC_DIR`; caches prefer scratch via
+`astroai-lab`.
 
-`/opt/astroai/venv/cadc` is `a+rwX` so session users can run
-`upgrade-cadc-tools.sh` or `uv pip install --python /opt/astroai/venv/cadc …`
-for `astroai-lab`, `canfar`, and CADC clients. Changes are session-local only.
-**uv/pixi/micromamba** under `/usr/local` are installed from upstream at image
-build time (unpinned). Project deps use pixi/uv under `TMP_SRC_DIR`; caches and
-agent CLIs use scratch via astroai-lab.
-
-## Ray and astroai-lab tests
+## Ray tests
 
 ```bash
-make test-ray BUILD_TAG=local          # Ray images, local cluster, manager UI, astroai-lab loop
-make test-canfar-ray TAG=26.06         # after push: CANFAR manager UI + 2-worker cluster
-make test-canfar-ray-gpu TAG=26.06     # production: 1 GPU worker cluster
+make test-ray BUILD_TAG=local
+make test-canfar-ray TAG=26.07
+make test-canfar-ray-gpu TAG=26.07
 ```
 
-| Script | What it checks |
-|--------|----------------|
-| `scripts/test-ray-ui-local.sh` | Manager HTML forms, JSON endpoints, action redirects |
-| `scripts/test-astroai-lab-loop.sh` | Cold start → `env save` → `env resume` inside `base` image |
-| `scripts/test-canfar-ray.sh` | Contributed manager on CANFAR: auth, preflight, cluster, UI |
+| Script | Checks |
+|--------|--------|
+| `scripts/test-ray-ui-local.sh` | Manager HTML / JSON / redirects |
+| `scripts/test-astroai-lab-loop.sh` | Cold start → save → resume in `base` |
+| `scripts/test-canfar-ray.sh` | CANFAR manager UI + cluster lifecycle |
 
-**astroai-lab** integration tests live in [astroai/astroai-lab](https://github.com/astroai/astroai-lab) (package: `astroai-lab`) (`tests/integration/test_cold_start_save_resume.py`).
+Integration tests for the CLI live in
+[astroai/astroai-lab](https://github.com/astroai/astroai-lab)
+(`tests/integration/test_cold_start_save_resume.py`).
 
-## Pull request workflow
+## Pull requests
 
 ```bash
 git add -A
@@ -136,22 +127,22 @@ git push -u origin my-change
 gh pr create --fill
 ```
 
-Keep PRs focused: one logical change (e.g. "fix uv paths" or "document Codex install") is easier to review than mixed doc + Dockerfile refactors.
+Keep PRs focused. Do not commit Harbor credentials, `.env` secrets, personal API
+keys, or large binary artifacts unrelated to the vendored wheel.
 
-**Do not commit:** Harbor credentials, `.env` secrets, personal API keys, or large binary artifacts.
+### Checklist
 
-## Review checklist (for authors)
+- [ ] `docs/USAGE.md` updated when user-visible behavior changes
+- [ ] Upstream [astroai-lab](https://github.com/astroai/astroai-lab) updated when CLI or path behavior changes
+- [ ] `dockerfiles/base/Dockerfile` still copies `docs/USAGE.md` correctly
+- [ ] `./scripts/test-local.sh` run when scripts or Dockerfiles change
+- [ ] Image layers stay lean — prefer documenting heavy deps in USAGE.md
 
-- [ ] `docs/USAGE.md` updated if user-visible behavior changed
-- [ ] astroai-lab CLI/docs updated if session commands or paths changed
-- [ ] `dockerfiles/base/Dockerfile` `COPY docs/USAGE.md` path matches renamed doc
-- [ ] Tested with `./scripts/test-local.sh` when scripts or Dockerfiles changed
-- [ ] No unnecessary expansion of the apt layer — prefer pixi/uv in USAGE.md
+## Publishing
 
-## Publishing (maintainers)
-
-Image push and Science Portal registration are documented in [OPERATORS.md](OPERATORS.md). Regular contributors do not need Harbor access — open a PR and a maintainer will build, tag, and publish.
+Image push and portal registration: [OPERATORS.md](OPERATORS.md).
 
 ## Questions
 
-Open a [GitHub issue](https://github.com/astroai/astroai-containers/issues) or discuss on an existing PR with `gh pr comment`.
+Open a [GitHub issue](https://github.com/astroai/astroai-containers/issues) or
+comment on a PR with `gh pr comment`.

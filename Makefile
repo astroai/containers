@@ -14,7 +14,7 @@ RAY_IMAGES := ray-manager ray-worker
 IMAGE_PREFIX := $(REGISTRY)/$(OWNER)
 
 help:
-	@echo "AstroAI CANFAR containers"
+	@echo "AstroAI session images (CANFAR Harbor: images.canfar.net/astroai)"
 	@echo "========================="
 	@echo "  make build-all          build session images (python → base → sessions)"
 	@echo "  make build-ray          build ray-manager + ray-worker (+ base chain)"

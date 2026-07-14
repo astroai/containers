@@ -1,57 +1,75 @@
-# Distributed Ray on CANFAR
+# Distributed Ray on AstroAI (CANFAR)
 
-## Product direction (slim)
+User-owned Ray clusters: a **contributed `ray-manager`** session launches
+**headless `ray-worker`** sessions over pod networking. Images are published as
+`images.canfar.net/astroai/ray-manager:<tag>` and
+`images.canfar.net/astroai/ray-worker:<tag>`.
 
-AstroAI does **not** maintain a custom Ray console as a product.
+```mermaid
+flowchart TB
+  User[You] --> Portal["Science Portal / canfar create"]
+  Portal --> Mgr["ray-manager :5000"]
+  Mgr --> Pref[Network preflight]
+  Pref --> W1[ray-worker]
+  Pref --> W2[ray-worker]
+  Mgr --> Dash["/dashboard/ → Ray Dashboard :8265"]
+  Mgr --> Jobs["ASTROAI_RAY_JOBS_ADDRESS → Jobs API"]
+  Jobs --> WL["astroai-workload RayExecutor"]
+```
 
-| Prefer | Avoid |
-|--------|--------|
-| Stock **Ray Dashboard** (`/dashboard/`) | Growing the FastAPI control panel |
-| `scripts/ray-launch.sh` + `canfar` | New UI workflows in `ray/manager/ui.py` |
-| ``canfar create` + stock Dashboard` | Separate CUDA/ML Ray images |
-| Student notebook `/opt/astroai/notebooks/ray_train.ipynb` | Prefect / new orchestration UIs |
+## Prefer
 
-The existing manager UI is **frozen** (`ray/manager/FROZEN.md`) so current E2E tests keep working while we steer users to Dashboard + scripts.
+| Path | Why |
+|------|-----|
+| Stock **Ray Dashboard** at `connectURL/dashboard/` | Jobs, actors, nodes, logs |
+| Manager control panel at `/` | Auth, preflight, create/stop cluster |
+| [`astroai-workload`](https://github.com/astroai/astroai-workload) or Dashboard Jobs | Submit training entrypoints |
+| One `ray-worker` image | Request `gpus=N` per worker; CPU and GPU share the image |
 
-User-owned Ray clusters: a **contributed `ray-manager` session** (port 5000) launches **headless `ray-worker` sessions** over pod networking. One worker image serves **CPU and GPU** nodes — request GPUs per worker in the UI or API (`gpus=N`); CANFAR schedules GPU nodes and the worker entrypoint verifies `nvidia-smi`. ML/CUDA stacks belong in user pixi/uv projects (same as other AstroAI images). Persistent state uses **`/arc/home/<user>/`** (or **`/arc/projects/<group>/`** for team workspaces) — never the `/arc` mount root. **`/scratch`** is required for spill/temp on all nodes.
+The FastAPI control panel is feature-frozen for stability (`ray/manager/FROZEN.md`).
+ML/CUDA stacks live in user pixi/uv projects. Spill/temp need **`/scratch`** on
+every node. Persist cluster state under `/arc/home/<user>/` or
+`/arc/projects/<group>/` — not the `/arc` mount root.
 
 ## Images
 
 | Image | Skaha type | Portal |
 |-------|------------|--------|
 | `ray-manager` | Contributed | Register — users launch this |
-| `ray-worker` | Headless | **Do not register** — manager launches workers |
-
-`ray-base` is build-only (extends `base` with a Python 3.12 Ray venv).
+| `ray-worker` | Headless | Manager launches workers |
+| `ray-base` | Build-only | Parent with Python 3.12 Ray venv |
 
 ## Build and test
 
 ```bash
-make build-ray BUILD_TAG=26.06
-make test-ray                              # local: 1-worker, 2-worker + recovery
-make push-ray TAG=26.06
-make test-canfar-ray TAG=26.07             # CANFAR: 2-worker cluster lifecycle
-make test-canfar-ray-gpu TAG=26.07         # CANFAR: 1 GPU worker (production)
-# If headless probe/workers hang Pending: see docs/HEADLESS_PENDING.md
-# CANFAR_RAY_SKIP_PREFLIGHT=1 make test-canfar-ray TAG=26.07
-# Launch managers with ≥8GiB when exercising Ray Jobs (4GiB OOMs the dashboard).
+make build-ray BUILD_TAG=26.07
+make test-ray
+make push-ray TAG=26.07
+make test-canfar-ray TAG=26.07
+make test-canfar-ray-gpu TAG=26.07
 ```
 
-Ray layers use the **same bake `TAG` as `base`** — no separate `BASE_TAG` pin.
+Ray layers use the **same bake `TAG` as `base`**.
 
-## CANFAR authentication
+For Jobs / Dashboard on CANFAR, start the manager with **≥8 GiB** memory.
 
-The manager launches workers with the **`canfar` Python client**. Run once from webterm/vscode:
+If headless probes hang Pending, see
+[OPERATORS.md — platform notes](OPERATORS.md#platform-notes-headless-pending)
+or set `CANFAR_RAY_SKIP_PREFLIGHT=1` for UI-only checks.
+
+## Authentication
+
+From any AstroAI session (webterm/vscode):
 
 ```bash
 canfar login
 ```
 
-(`canfar auth login` is a deprecated alias — prefer `canfar login`.)
+Credentials persist as `~/.canfar/config.yaml` (and optionally
+`~/.ssl/cadcproxy.pem`) on `/arc/home`. The manager reuses that volume to launch
+workers via the `canfar` Python client.
 
-Credentials persist on **`/arc/home/<you>/`** as `~/.canfar/config.yaml` (and optionally `~/.ssl/cadcproxy.pem`). Ray-manager sessions reuse the same home volume.
-
-For headless worker launches, registry pull auth must also be configured (same file or env):
+For maintainer headless pulls when required:
 
 ```bash
 canfar config set registry.url https://images.canfar.net
@@ -59,85 +77,100 @@ canfar config set registry.username <harbor-user>
 canfar config set registry.secret <harbor-cli-secret>
 ```
 
-Maintainer smoke tests load docker login credentials and persist them to `/arc/home` via a short headless bootstrap session before creating the manager (`scripts/test-canfar-ray.sh`).
-
 ## Network preflight
 
-Preflight launches a **headless probe session** to verify pod-to-pod TCP on Ray ports (6379–6381). This requires CANFAR/Skaha to allow traffic between a user's contributed manager and their headless workers. If the probe stays **Pending** with no Start Time, that is a **headless scheduling** hang — see [HEADLESS_PENDING.md](HEADLESS_PENDING.md). If all `worker->manager` checks fail while the manager is healthy, that is usually **platform session-to-session network isolation** — see [ray-build-plan.md](ray-build-plan.md) §18. Worker logs showing `ERROR: cannot reach Ray head at <manager-ip>:6379` confirm the same block after the worker starts.
+Preflight starts a headless probe and checks **worker→manager** TCP on Ray ports
+(6379–6381). Manager→worker samples against the probe pod are not used (the probe
+never listens on Ray ports).
 
-Maintainer tests can set `CANFAR_RAY_SKIP_PREFLIGHT=1` to exercise UI/auth without preflight when staging blocks cross-session TCP.
+| Outcome | Meaning |
+|---------|---------|
+| Probe stays **Pending** | Headless scheduling issue — [science-platform#1124](https://github.com/opencadc/science-platform/issues/1124) |
+| `worker→manager` checks fail | Session-to-session network isolation on the platform |
+| Worker log: cannot reach head `:6379` | Same networking class after the worker starts |
 
-## Web UI (frozen control panel + stock Dashboard)
+Preflight results are bound to the manager pod IP. Creating a cluster after moving
+to a new manager session requires a fresh preflight.
 
-Contributed **`ray-manager`** serves a browser UI on port **5000** (same as webterm/vscode).
+## Web UI
+
+Contributed **`ray-manager`** serves port **5000** under
+`/session/contrib/<session-id>/` (prefix stripped before the container).
 
 | Surface | Purpose |
 |---------|---------|
-| `/` | Thin CANFAR control panel — auth, preflight, create/stop cluster, worker table |
-| `/dashboard/` | Official **Ray Dashboard** (jobs, actors, nodes, metrics, logs), reverse-proxied from `127.0.0.1:8265` |
-| `/actions/*` | Form POSTs for cluster lifecycle (redirect + flash) |
+| `/` | Auth, preflight, create/stop cluster, worker table |
+| `/dashboard/` | Official Ray Dashboard (proxy to `127.0.0.1:8265`) |
+| `/actions/*` | Form POSTs for cluster lifecycle |
 | `/api/v1/*` | JSON automation |
 
-The Ray head starts with `--include-dashboard=true` bound to **localhost only**. CANFAR ingress exposes only port 5000 under `/session/contrib/<session-id>/` (prefix stripped before the container). The manager therefore emits browser links as `/session/contrib/<id>/dashboard/` (from `skaha_sessionid`) so **Open Ray Dashboard** stays inside the session URL — never bare `https://workloads.canfar.net/dashboard/`. Always open the dashboard with a trailing slash.
+Always open the Dashboard **with a trailing slash**, using the session connect
+URL (`…/dashboard/`), not a bare workloads hostname.
 
-After launch, open the session connect URL and verify:
+On the manager pod, Jobs clients use **`ASTROAI_RAY_JOBS_ADDRESS`**
+(`http://127.0.0.1:8265`).
 
-- CANFAR auth line shows **Authenticated**
-- Programmatic Jobs clients on this pod use **`ASTROAI_RAY_JOBS_ADDRESS`**
-  (`http://127.0.0.1:8265`, set by `startup-ray-manager.sh`). Browsers use
-  `connectURL/dashboard/` — do not invent hostnames like `ray-manager:8265`.
-- **Open Ray Dashboard** works (jobs/nodes UI)
-- **Run network preflight** before first cluster create
-- Worker table shows session IDs, phases, and **Retry** for failed workers
+Local UI smoke: `./scripts/test-ray-ui-local.sh` (part of `make test-ray`).
 
-Local smoke: `./scripts/test-ray-ui-local.sh` (included in `make test-ray`). On CANFAR: `make test-canfar-ray TAG=26.06` checks HTML + API after push.
+## Cluster workflow
 
-## Cluster workflow (Milestone C)
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant M as ray-manager
+  participant C as canfar / Skaha
+  participant W as ray-workers
+  U->>M: Run network preflight
+  M->>C: Headless probe
+  U->>M: Create cluster N workers
+  M->>C: Launch ray-worker sessions
+  C->>W: Start workers
+  W->>M: Join Ray head
+  U->>M: Open /dashboard/ or submit Jobs
+  U->>M: Stop cluster
+  M->>C: Delete workers
+```
 
-1. **Run network preflight** — verifies pod-to-pod TCP for Ray ports
-2. **Create cluster** — specify worker count, CPU/RAM, **GPUs per worker**, min joined, partial-start policy
-3. **Use Ray** — connect with `ray.init(address="auto")` from the manager or your code
-4. **Stop cluster** — destroys all worker sessions and marks cluster `Stopped`
+1. **Run network preflight**
+2. **Create cluster** — worker count, CPU/RAM, GPUs per worker, `min_joined`, partial-start policy
+3. **Use Ray** — Dashboard, `ray.init(address="auto")` on the manager, or Jobs / `astroai-workload`
+4. **Stop cluster** — destroys worker sessions
 
-Partial-start policies:
+Partial-start policies: `accept_partial`, `fail_and_cleanup`, `continue_waiting`.
 
-| Policy | Behavior |
-|--------|----------|
-| `accept_partial` | Proceed when `min_joined` workers are healthy (cluster phase `Degraded`) |
-| `fail_and_cleanup` | Destroy workers and fail if minimum not met |
-| `continue_waiting` | Poll until timeout |
-
-State persists at `~/.astroai/ray/clusters/<cluster-id>/state.json`. Headless worker stdout/stderr is archived under `workers/<session-id>.log` in the same directory (survives CANFAR session deletion). Fetch via `GET /api/v1/workers/{session_id}/logs` or the **logs** link in the UI. On manager restart, **Reconcile state** (or automatic startup reconcile) refreshes CANFAR + Ray membership.
+State lives at `~/.astroai/ray/clusters/<cluster-id>/state.json` (worker logs archived
+beside it). Each manager session defaults `RAY_CLUSTER_ID` to `mgr-<skaha_sessionid>`
+so a new manager does not inherit another pod’s `default` state on shared `/arc/home`.
+Override `RAY_CLUSTER_ID` for a stable team path under `/arc/projects` if needed.
+On manager start, terminal-phase leftovers are destroyed (startup GC); **Reconcile
+state** refreshes membership for an active cluster after restart.
 
 ## Manager API
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /api/v1/auth/status` | CANFAR credential check |
-| `POST /api/v1/preflight/run` | Network preflight (`?async=1` returns 202 immediately; poll `GET /api/v1/status`) |
-| `POST /api/v1/cluster/create` | Launch N workers (`?async=1` avoids ingress timeout; poll status) |
-| `POST /api/v1/cluster/stop` | Stop cluster and destroy workers |
-| `POST /api/v1/cluster/reconcile` | Refresh CANFAR/Ray state |
-| `POST /api/v1/cluster/clean-orphans` | Destroy untracked worker sessions |
+| `GET /api/v1/auth/status` | Credential check |
+| `POST /api/v1/preflight/run` | Network preflight (`?async=1`) |
+| `POST /api/v1/cluster/create` | Launch workers (`?async=1`) |
+| `POST /api/v1/cluster/stop` | Stop and destroy workers |
+| `POST /api/v1/cluster/reconcile` | Refresh state |
+| `POST /api/v1/cluster/clean-orphans` | Destroy untracked workers |
 | `POST /api/v1/workers/{id}/retry` | Retry a failed worker |
 | `GET /api/v1/status` | Full cluster JSON |
+| `GET /api/v1/workers/{id}/logs` | Archived worker logs |
 
 ## Layout
 
 ```
-ray/manager/           # FastAPI + cluster lifecycle
-scripts/test-ray-cluster-local.sh
-examples/ray/
+ray/manager/                 FastAPI + cluster lifecycle
+ray/worker/                  Worker entrypoint helpers
+scripts/test-ray-*.sh        Local and CANFAR tests
+examples/ray/                Container smokes
 ```
 
-Full spec: [ray-build-plan.md](ray-build-plan.md).
+## Related
 
-## Status
-
-| Milestone | Scope | Status |
-|-----------|--------|--------|
-| A | Local manager + worker join | Done |
-| B | CANFAR auth, preflight, worker via API | Done |
-| C | Multi-worker cluster, stop, reconcile, recovery | Done |
-| D | Astronomy workload validation | Planned |
-| E | GPU worker validation (single `ray-worker` image) | Done |
+- [USAGE.md](USAGE.md) — general sessions
+- [OPERATORS.md](OPERATORS.md) — publish and platform notes
+- [astroai-workload](https://github.com/astroai/astroai-workload) — Jobs helpers + MNIST example
+- Starter notebook in-image: `/opt/astroai/notebooks/ray_train.ipynb`
