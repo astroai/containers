@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 from typing import Any
+
 from canfar_ops import CanfarOps
-from ray_cluster import list_ray_nodes, live_worker_node_ips, node_ip_to_id, parse_worker_ip_from_logs, ray_address
+from ray_cluster import (
+    list_ray_nodes,
+    live_worker_node_ips,
+    node_ip_to_id,
+    parse_worker_ip_from_logs,
+    ray_address,
+)
 from settings import manager_pod_ip
 from state_store import (
     ACTIVE_CLUSTER_PHASES,
+    TERMINAL_WORKER_PHASES,
     ClusterState,
     StateStore,
-    TERMINAL_WORKER_PHASES,
     WorkerRecord,
 )
 from worker_logs import archive_session_logs, read_worker_logs
@@ -122,7 +129,9 @@ def _refresh_cluster_phase(state: ClusterState) -> None:
         state.phase = "Running"
     elif joined >= state.min_joined and joined > 0:
         state.phase = "Degraded"
-    elif active == 0 and state.phase == "Creating" or state.phase == "Creating" and joined == 0 and all(
+    elif (
+        active == 0 and state.phase == "Creating"
+    ) or state.phase == "Creating" and joined == 0 and all(
         w.phase in {"CANFAR Failed", "Stopped", "Orphaned"} for w in state.workers
     ):
         state.phase = "Failed"

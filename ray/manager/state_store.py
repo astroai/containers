@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import tempfile
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-import contextlib
 
 PARTIAL_POLICIES = frozenset({"fail_and_cleanup", "accept_partial", "continue_waiting"})
 
@@ -21,7 +21,7 @@ TERMINAL_WORKER_PHASES = frozenset({"Stopped", "Stopping", "Orphaned"})
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
 def cluster_state_dir(cluster_id: str | None = None) -> Path:

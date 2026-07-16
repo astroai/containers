@@ -23,7 +23,8 @@ from cluster import (
     stop_cluster,
     validate_cluster_create,
 )
-from dashboard_proxy import dashboard_ready, router as dashboard_router
+from dashboard_proxy import dashboard_ready
+from dashboard_proxy import router as dashboard_router
 from preflight import run_preflight
 from ray_cluster import count_live_nodes, list_ray_nodes, ray_address, ray_running
 from reconcile import reconcile_cluster
@@ -40,8 +41,8 @@ from ui import (
     setup_ready,
     workers_table_html,
 )
-from workers import destroy_all_workers, destroy_worker, launch_worker
 from worker_logs import archive_session_logs, read_worker_logs
+from workers import destroy_all_workers, destroy_worker, launch_worker
 
 app = FastAPI(title="CANFAR Ray Manager")
 app.include_router(dashboard_router)

@@ -107,13 +107,13 @@ RUN mkdir -p /opt/astroai/{bin,cache,lib,venv} /cadc "${ASTROAI_LAB_DEFAULT_SRC_
     && chmod 1777 "${ASTROAI_LAB_DEFAULT_SRC_DIR}"
 
 COPY config/cadc-tools.txt /opt/astroai/cadc-tools.txt
-COPY vendor/astroai_lab-0.1.0-py3-none-any.whl /tmp/astroai_lab-0.1.0-py3-none-any.whl
 COPY scripts/patch-clint-py313.sh /tmp/patch-clint-py313.sh
+COPY config/astroai-lab.in config/astroai-lab.lock /tmp/
 RUN uv venv /opt/astroai/venv/cadc \
     && uv pip install --python /opt/astroai/venv/cadc -r /opt/astroai/cadc-tools.txt \
-    && uv pip install --python /opt/astroai/venv/cadc /tmp/astroai_lab-0.1.0-py3-none-any.whl \
+    && uv pip install --python /opt/astroai/venv/cadc --requirements /tmp/astroai-lab.lock \
     && bash /tmp/patch-clint-py313.sh /opt/astroai/venv/cadc \
-    && rm /tmp/patch-clint-py313.sh /tmp/astroai_lab-0.1.0-py3-none-any.whl \
+    && rm /tmp/patch-clint-py313.sh /tmp/astroai-lab.in /tmp/astroai-lab.lock \
     && chmod -R a+rwX /opt/astroai/venv/cadc \
     && /opt/astroai/venv/cadc/bin/astroai-lab env install-shell /etc/astroai-lab \
     && test -f /etc/astroai-lab/profile.sh \

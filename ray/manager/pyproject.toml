@@ -4,3 +4,52 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "BLE", "SIM", "PIE"]
+
+# SIM112 false-positives on CANFAR platform env vars (Skaha injects
+# `skaha_sessionid` / `skaha_sessiontype` etc. in lowercase; the platform
+# contract is the canonical case and we must match it — uppercase variants
+# would silently miss the env var at runtime).
+extend-ignore = ["SIM112"]
+
+# Targeted per-file suppresses for files whose violations are intentional:
+#   - ui.py and app.py: HTML/CSS template strings are intrinsically long.
+#   - tests/*.py: late-import after sys.path.insert (E402); tolerance for
+#     long fixture URLs (E501); relaxed for SIM105 / SIM117 / F841 to keep
+#     test boilerplate readable.
+#   - cluster.py + dashboard_proxy.py: explicit `try`/`except`/`pass`
+#     patterns around I/O teardown are more readable than
+#     `contextlib.suppress(Exception)` (SIM105).
+[tool.ruff.lint.per-file-ignores]
+"app.py" = ["E501"]
+"ui.py" = ["E501"]
+"cluster.py" = ["SIM105"]
+"dashboard_proxy.py" = ["SIM105"]
+"tests/*.py" = ["E402", "E501", "SIM117", "SIM105", "F841"]
+
+# Private project — installed into a runtime venv at image build time AND
+# into a CI venv for the unit tests below. Never published to a package
+# index. Lower-bound-only pins: the resolver captures resolved versions
+# in the lockfile; bump deliberately via `make lock-ray` /
+# `make lock-astroai-lab` and rerun the test lane, never by adding upper
+# bounds here.
+[project]
+name = "astroai-ray-manager"
+version = "0.1.0"
+description = "Ray cluster manager for CANFAR (in-tree; not published)."
+requires-python = ">=3.12"
+private = true
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "pydantic>=2.9",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "websockets>=12",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.8",
+]

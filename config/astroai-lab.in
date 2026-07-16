@@ -1,0 +1,10 @@
+# Source constraint for astroai-lab, consumed by `make lock-astroai-lab`.
+#
+# Pin is a fixed commit SHA, NOT a git tag and NOT a package version.
+# The `v0.1.0` tag still declares the legacy `name = "canfar-lab"` metadata;
+# the rename to `name = "astroai-lab"` happened post-v0.1.0 (commit 5f269b7
+# onward). Pin to a SHA so reproducibility is git-pinned not version-pinned.
+#
+# Bump deliberately: pick a SHA on `main` that you have tested, replace the
+# line below, then `make lock-astroai-lab`. Never edit the lockfile by hand.
+astroai-lab @ git+https://github.com/astroai/astroai-lab.git@5f269b7eefe4963a93026c61bc223b13056a2354

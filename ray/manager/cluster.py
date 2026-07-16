@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -15,13 +14,13 @@ from state_store import (
     ACTIVE_CLUSTER_PHASES,
     PARTIAL_POLICIES,
     TERMINAL_CLUSTER_PHASES,
+    TERMINAL_WORKER_PHASES,
     ClusterState,
     StateStore,
-    TERMINAL_WORKER_PHASES,
     WorkerRecord,
 )
-from workers import build_worker_env, destroy_all_workers, destroy_worker
 from worker_logs import archive_session_logs
+from workers import build_worker_env, destroy_all_workers, destroy_worker
 
 PartialPolicy = Literal["fail_and_cleanup", "accept_partial", "continue_waiting"]
 
@@ -560,7 +559,9 @@ def _pending_workers(state: ClusterState) -> list[WorkerRecord]:
     ]
 
 
-def _archive_worker_logs(*, canfar: CanfarOps, store: StateStore, state: ClusterState | None) -> None:
+def _archive_worker_logs(
+    *, canfar: CanfarOps, store: StateStore, state: ClusterState | None
+) -> None:
     if not state:
         return
     for worker in state.workers:

@@ -1,0 +1,41 @@
+name: astroai-containers CI
+
+# Docker-free gate for the ray-manager module. Image build/test pipelines
+# remain operator-side via the Makefile (`make build-all`, `make test-local`,
+# `make test-canfar`, …). Lower-bound-only deps in ray/manager/pyproject.toml
+# resolve through the existing uv.lock-equivalent discipline governed by
+# `config/ray-deps.lock` and `config/astroai-lab.lock`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  manager-pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Sync manager project (runtime + dev deps)
+        working-directory: astroai-containers/ray/manager
+        run: uv sync --group dev --quiet
+
+      - name: Ruff
+        working-directory: astroai-containers/ray/manager
+        run: uv run ruff check .
+
+      - name: Pytest (ray-manager unit tests)
+        working-directory: astroai-containers
+        run: |
+          cd ray/manager
+          uv run pytest tests/ -q
+
+      - name: Lockfile integrity
+        working-directory: astroai-containers
+        run: make -s lock-check

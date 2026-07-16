@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 import httpx
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect

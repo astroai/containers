@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 import types
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -59,17 +59,13 @@ MANAGER_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MANAGER_DIR))
 
 from canfar_ops import (  # noqa: E402
-    AuthStatus,
     CanfarOps,
     SessionLaunch,
     parse_probe_logs,
 )
 from cluster import (  # noqa: E402
     ClusterCreateRequest,
-    clean_orphaned_workers,
-    fail_create_cleanup,
     gc_terminal_cluster_workers,
-    prepare_cluster_create,
     retry_worker,
     stop_cluster,
     validate_cluster_create,
@@ -82,9 +78,6 @@ from reconcile import (  # noqa: E402
 )
 from settings import ManagerSettings  # noqa: E402
 from state_store import (  # noqa: E402
-    ACTIVE_CLUSTER_PHASES,
-    TERMINAL_CLUSTER_PHASES,
-    TERMINAL_WORKER_PHASES,
     ClusterState,
     StateStore,
     WorkerRecord,

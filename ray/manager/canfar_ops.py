@@ -204,7 +204,9 @@ def parse_probe_logs(logs: str) -> dict[str, Any]:
     return {"worker_ip": worker_ip, "checks": checks, "result": overall}
 
 
-def manager_to_worker_probe(manager_ip: str, worker_ip: str, ports: list[int]) -> list[dict[str, str]]:
+def manager_to_worker_probe(
+    manager_ip: str, worker_ip: str, ports: list[int]
+) -> list[dict[str, str]]:
     import socket
 
     results: list[dict[str, str]] = []

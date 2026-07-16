@@ -9,7 +9,7 @@ from typing import Any
 from canfar_ops import CanfarOps
 from ray_cluster import count_live_nodes, ray_address, wait_for_node_count
 from settings import ManagerSettings, manager_pod_ip
-from state_store import StateStore, WorkerRecord, ClusterState
+from state_store import ClusterState, StateStore, WorkerRecord
 from worker_logs import archive_session_logs
 
 

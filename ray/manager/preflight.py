@@ -180,7 +180,9 @@ def _tcp_reachable(ip: str, port: int, timeout: float = 3.0) -> bool:
         return False
 
 
-def _persist_preflight(store: StateStore, settings: ManagerSettings, report: PreflightReport) -> None:
+def _persist_preflight(
+    store: StateStore, settings: ManagerSettings, report: PreflightReport
+) -> None:
     from ray_cluster import ray_address
 
     state = store.load()

@@ -1,4 +1,4 @@
-.PHONY: help build-all build/% build-ray push-all push/% push-ray test-local test-ray test-canfar test-canfar-session test-canfar-ray test-canfar-ray-gpu clean clean-all
+.PHONY: help build-all build/% build-ray push-all push/% push-ray test-local test-ray test-canfar test-canfar-session test-canfar-ray test-canfar-ray-gpu clean clean-all lock-ray lock-astroai-lab lock-check
 
 SHELL := bash
 OWNER ?= astroai
@@ -30,6 +30,9 @@ help:
 	@echo "  make test-canfar-ray-gpu CANFAR: 1 GPU worker cluster (production)"
 	@echo "  make clean              remove local $(IMAGE_PREFIX)/* images"
 	@echo "  make clean-all          clean + prune buildx cache"
+	@echo "  make lock-ray           regenerate config/ray-deps.lock"
+	@echo "  make lock-astroai-lab   regenerate config/astroai-lab.lock"
+	@echo "  make lock-check         fail if a lockfile drifts from its source"
 	@echo ""
 	@echo "  OWNER=$(OWNER)  REGISTRY=$(REGISTRY)  BUILD_TAG=$(BUILD_TAG)  TAG=$(TAG)"
 
@@ -62,6 +65,23 @@ push/%:
 	docker push $(IMAGE_PREFIX)/$(notdir $@):$(TAG)
 	docker tag $(IMAGE_PREFIX)/$(notdir $@):$(BUILD_TAG) $(IMAGE_PREFIX)/$(notdir $@):latest
 	docker push $(IMAGE_PREFIX)/$(notdir $@):latest
+
+lock-ray: ## regenerate config/ray-deps.lock from config/ray-deps.txt (Python 3.12, Ray).
+	uv pip compile --python-version 3.12 --output-file config/ray-deps.lock config/ray-deps.txt
+
+lock-astroai-lab: ## regenerate config/astroai-lab.lock from the SHA pin in config/astroai-lab.in.
+	uv pip compile --python-version 3.13 --output-file config/astroai-lab.lock config/astroai-lab.in
+
+lock-check: ## fail CI if either lockfile's package body drifts from its source. The uv-generated header (3 lines) is stripped before comparison so output paths in the embedded command line don't cause false-positive drift.
+	uv pip compile --python-version 3.12 --output-file /tmp/__ray.lock config/ray-deps.txt
+	tail -n +4 /tmp/__ray.lock > /tmp/__ray.body
+	tail -n +4 config/ray-deps.lock > /tmp/__ray.committed.body
+	cmp -s /tmp/__ray.body /tmp/__ray.committed.body || { echo "ray-deps.lock drift — run make lock-ray" >&2; exit 1; }
+	uv pip compile --python-version 3.13 --output-file /tmp/__lab.lock config/astroai-lab.in
+	tail -n +4 /tmp/__lab.lock > /tmp/__lab.body
+	tail -n +4 config/astroai-lab.lock > /tmp/__lab.committed.body
+	cmp -s /tmp/__lab.body /tmp/__lab.committed.body || { echo "astroai-lab.lock drift — run make lock-astroai-lab" >&2; exit 1; }
+	@echo "lockfile package bodies match their source constraints"
 
 test-local: ## verify session images (parallel)
 	@fails=0; pids=(); \

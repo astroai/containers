@@ -10,13 +10,11 @@ FROM ${REGISTRY}/${OWNER}/base:${TAG}
 LABEL org.opencontainers.image.title="AstroAI Ray Base" \
       org.opencontainers.image.description="Ray + astronomy deps on AstroAI base"
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-COPY config/ray-deps.txt /opt/astroai/ray-deps.txt
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]COPY config/ray-deps.txt config/ray-deps.lock /tmp/
 RUN uv python install 3.12 \
     && uv venv /opt/astroai/venv/ray --python 3.12 \
-    && uv pip install --python /opt/astroai/venv/ray -r /opt/astroai/ray-deps.txt \
-    && rm /opt/astroai/ray-deps.txt \
+    && uv pip install --python /opt/astroai/venv/ray --requirements /tmp/ray-deps.lock \
+    && rm /tmp/ray-deps.txt /tmp/ray-deps.lock \
     && /opt/astroai/venv/ray/bin/python -c "import ray; print(ray.__version__)" \
         > /opt/astroai/ray-version.txt \
     && chmod a+r /opt/astroai/ray-version.txt \
