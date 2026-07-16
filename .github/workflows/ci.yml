@@ -50,6 +50,6 @@ jobs:
         working-directory: astroai-containers
         run: ./scripts/test-lockfile-drift.sh
 
-      - name: Lockfile integrity (DO NOT add continue-on-error — uv/gate stays hard)
+      - name: Lockfile integrity — DO NOT add continue-on-error — make -s lock-check
         working-directory: astroai-containers
         run: make -s lock-check
