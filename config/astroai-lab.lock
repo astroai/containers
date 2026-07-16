@@ -4,7 +4,7 @@ annotated-doc==0.0.4
     # via typer
 annotated-types==0.7.0
     # via pydantic
-astroai-lab @ git+https://github.com/astroai/astroai-lab.git@5f269b7eefe4963a93026c61bc223b13056a2354
+astroai-lab @ git+https://github.com/astroai/astroai-lab.git@0cbe79467325529e6dcd17d4ab7d25e2c2d0d7b0
     # via -r config/astroai-lab.in
 humanize==4.16.0
     # via astroai-lab
