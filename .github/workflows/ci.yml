@@ -40,6 +40,16 @@ jobs:
       # lower-bound-only source constraints (no `==` / `<=` pins anywhere). Do
       # not add `continue-on-error: true` or `|| true` here — that would
       # silently re-allow resolver drift past CI and break reproducibility.
-      - name: Lockfile integrity
+      - name: Probe lockfile drift gate
+        # Regression test for the gate directly below. Injects junk into each
+        # committed lockfile in turn and asserts `make -s lock-check` returns
+        # non-zero. Self-restoring via an EXIT trap so the working tree ends
+        # up clean even if the runner is killed mid-script. If this step ever
+        # passes-with-drift, the gate below has been weakened and MUST be
+        # re-hardened.
+        working-directory: astroai-containers
+        run: ./scripts/test-lockfile-drift.sh
+
+      - name: Lockfile integrity (DO NOT add continue-on-error — uv/gate stays hard)
         working-directory: astroai-containers
         run: make -s lock-check
