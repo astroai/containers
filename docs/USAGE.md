@@ -319,7 +319,7 @@ astroai-lab tools
 | Lost files after session end | They were on `/srcdir` or `/scratch` — sync to `/arc` next time before exit |
 | Home quota full | `astroai-lab status`; `astroai-lab clean home --all-safe --dry-run` |
 | Caches under `$HOME` | Use a login shell; `astroai-lab doctor` |
-| Session stuck **Pending** | Check `canfar ps` / `canfar events`; prune stuck sessions (`canfar prune` / delete) — quota is small |
+| Session stuck **Pending** | Check `canfar ps` / `canfar events`. Stuck **contributed/notebook** sessions consume the (≈3) session quota — prune to free slots. **Headless kinds are quota-exempt** — a Pending headless is the [Skaha scheduling flake](OPERATORS.md#platform-notes-headless-pending), not a quota issue |
 | Marimo / UI 404 | Confirm connect URL trailing path; contrib ingress strips `/session/contrib/<id>` |
 | Need Ray | Follow [RAY.md](RAY.md); manager memory **≥8 GiB** for Jobs/Dashboard |
 
