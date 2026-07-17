@@ -1,4 +1,4 @@
-.PHONY: help build-all build/% build-ray push-all push/% push-ray test-local test-ray test-canfar test-canfar-session test-canfar-ray test-canfar-ray-gpu clean clean-all lock-ray lock-astroai-lab lock-check
+.PHONY: help build-all build/% build-ray push-all push/% push-ray test-local test-ray test-canfar test-canfar-session test-canfar-ray test-canfar-ray-gpu clean clean-all lock-ray lock-astroai-lab lock-check lint lint-doc-quota
 
 SHELL := bash
 OWNER ?= astroai
@@ -33,6 +33,8 @@ help:
 	@echo "  make lock-ray           regenerate config/ray-deps.lock"
 	@echo "  make lock-astroai-lab   regenerate config/astroai-lab.lock"
 	@echo "  make lock-check         fail if a lockfile drifts from its source"
+	@echo "  make lint-doc-quota     forbid false 'headless consumes quota' advice in test-canfar.sh"
+	@echo "  make lint               run lock-check + lint-doc-quota"
 	@echo ""
 	@echo "  OWNER=$(OWNER)  REGISTRY=$(REGISTRY)  BUILD_TAG=$(BUILD_TAG)  TAG=$(TAG)"
 
@@ -130,6 +132,14 @@ clean:
 
 clean-all: clean
 	docker buildx prune -f
+
+lint-doc-quota: ## forbid test-canfar.sh from reintroducing the false 'headless consumes quota' claim
+	chmod +x scripts/lint-doc-quota.sh
+	./scripts/lint-doc-quota.sh
+
+lint: ## run all lint-style checks (lockfile drift + doc-quota guard)
+	$(MAKE) lock-check
+	$(MAKE) lint-doc-quota
 
 .PHONY: ray-launch
 ray-launch:
