@@ -35,6 +35,34 @@ cleanup() {
         echo "Deleting test session ${SESSION_ID}..."
         canfar delete --force "${SESSION_ID}" 2>/dev/null || true
     fi
+    # Belt-and-braces: kill any session still matching SESSION_NAME — covers the
+    # rare case where both the (ID:...) parser and the name probe above missed
+    # (e.g. Skaha catalog race) and an orphan would otherwise stay alive and
+    # consume the user's 3-session quota.
+    local orphan_id
+    orphan_id="$(canfar ps -a --json 2>/dev/null | python3 -c "
+import json, sys
+raw = sys.stdin.read().strip()
+for m in ('[', '{'):
+    i = raw.find(m)
+    if i >= 0:
+        raw = raw[i:]
+        break
+try:
+    rows = json.loads(raw)
+except json.JSONDecodeError:
+    raise SystemExit(0)
+if isinstance(rows, dict):
+    rows = [rows]
+for r in rows:
+    if r.get('name') == sys.argv[1]:
+        print(r.get('id') or '')
+        break
+" "${SESSION_NAME}" 2>/dev/null || true)"
+    if [[ -n "${orphan_id}" && "${orphan_id}" != "${SESSION_ID:-}" ]]; then
+        echo "Deleting orphan session ${orphan_id} (name match)..."
+        canfar delete --force "${orphan_id}" 2>/dev/null || true
+    fi
 }
 trap cleanup EXIT
 
@@ -60,11 +88,8 @@ if ! canfar auth show >/dev/null 2>&1; then
 fi
 
 CREATE_OUT="$(canfar create --name "${SESSION_NAME}" --cpu "${CANFAR_TEST_CPU:-1}" \
-    --memory "${CANFAR_TEST_MEMORY:-2}" "${KIND}" "${FULL_IMAGE}" 2>&1)" || {
-    echo "${CREATE_OUT}" >&2
-    echo "Failed to create ${KIND} session." >&2
-    exit 1
-}
+    --memory "${CANFAR_TEST_MEMORY:-2}" "${KIND}" "${FULL_IMAGE}" 2>&1)" || \
+    echo "Warning: canfar create exited non-zero — will probe by name." >&2
 echo "${CREATE_OUT}"
 
 SESSION_ID="$(
@@ -74,8 +99,34 @@ SESSION_ID="$(
         | sed -n 's/.*(ID:[[:space:]]*\([^)]*\)).*/\1/p' \
         | awk '{print $1}'
 )"
+# canfar create's (ID:...) parser can miss on slow Skaha responses (the CLI
+# may even exit non-zero with "No session IDs returned"), but Skaha usually
+# still accepts the session. Probe by name as a fallback — mirrors
+# test-canfar.sh / test-canfar-ray.sh so we never leave Skaha-created
+# orphans behind that would consume the user's 3-session quota.
 if [[ -z "${SESSION_ID}" ]]; then
-    echo "Could not parse session ID." >&2
+    SESSION_ID="$(canfar ps -a --json 2>/dev/null | python3 -c "
+import json, sys
+raw = sys.stdin.read().strip()
+for m in ('[', '{'):
+    i = raw.find(m)
+    if i >= 0:
+        raw = raw[i:]
+        break
+try:
+    rows = json.loads(raw)
+except json.JSONDecodeError:
+    raise SystemExit(0)
+if isinstance(rows, dict):
+    rows = [rows]
+for r in rows:
+    if r.get('name') == sys.argv[1]:
+        print(r.get('id') or '')
+        break
+" "${SESSION_NAME}" 2>/dev/null || true)"
+fi
+if [[ -z "${SESSION_ID}" ]]; then
+    echo "Could not resolve session ID for ${SESSION_NAME}." >&2
     exit 1
 fi
 
