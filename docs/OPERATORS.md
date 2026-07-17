@@ -133,8 +133,11 @@ CANFAR_TEST_QUICK=1 make test-canfar IMAGE=base TAG=26.07
 
 `test-canfar.sh` waits for completion and expects `All checks passed.` in logs.
 If status stays **Pending** with no Start Time for `CANFAR_PENDING_STUCK_SECS`
-(default **120**), the script fails fast. Prune stuck Pending sessions — they
-consume the small concurrent-session quota.
+(default **120**), the script fails fast. Note: this is the documented
+upstream **Skaha headless-scheduling flake**
+([opencadc/science-platform#1124](https://github.com/opencadc/science-platform/issues/1124)),
+**not** a concurrent-session quota lock — session quotas do not apply to
+headless kinds. (See [Platform notes](#platform-notes-headless-pending).)
 
 **Ray:**
 
@@ -159,7 +162,9 @@ While headless is unhealthy:
 
 1. Prefer `make test-canfar-session` for contributed/notebook gates.
 2. Set `CANFAR_RAY_SKIP_PREFLIGHT=1` to exercise Ray manager UI without the probe.
-3. Keep concurrent sessions low; delete stuck Pending jobs promptly.
+3. Keep concurrent contributed/notebook sessions low. Headless kinds are
+   **quota-exempt** — a stuck Pending headless job is the Skaha scheduling
+   flake, not a quota lock. Prune only for hygiene, not to free quota slots.
 
 ## Diagnostics users can share
 

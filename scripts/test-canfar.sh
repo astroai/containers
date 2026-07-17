@@ -245,7 +245,7 @@ while (( SECONDS < deadline )); do
                 echo "Headless session still Pending with Start Time Unknown after ${PENDING_STUCK_SECS}s." >&2
                 echo "This usually indicates a Skaha headless-scheduling hang (not image CMD)." >&2
                 echo "See docs/OPERATORS.md (platform notes) — use: make test-canfar-session IMAGE=<webterm|notebook|…>" >&2
-                echo "Prune stuck sessions so they do not consume the 3-session quota." >&2
+                echo "Headless kinds are quota-exempt; this Pending hang is the Skaha scheduling flake (opencadc/science-platform#1124), not a concurrent-session quota lock." >&2
                 canfar logs "${SESSION_ID}" 2>&1 | tail -20 >&2 || true
                 FAILURES=$((FAILURES + 1))
                 exit ${FAILURES}
