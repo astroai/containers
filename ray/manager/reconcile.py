@@ -19,8 +19,15 @@ from state_store import (
     ClusterState,
     StateStore,
     WorkerRecord,
+    _utc_now,
 )
 from worker_logs import archive_session_logs, read_worker_logs
+
+
+# Wait this long after joined >= worker_count before declaring the cluster
+# fully formed. Prevents the test/poll layer from racing the cluster-formation
+# step on CANFAR (Milestone B observed joined_workers=0 on stable joins).
+MIN_SETUP_STABLE_SECONDS = 10
 
 
 def reconcile_cluster(
@@ -81,6 +88,7 @@ def reconcile_cluster(
             worker.phase = "Ray Joining"
 
     if state.phase in ACTIVE_CLUSTER_PHASES:
+        _refresh_setup_ready(state)
         _refresh_cluster_phase(state)
 
     store.save(state)
@@ -126,7 +134,16 @@ def _refresh_cluster_phase(state: ClusterState) -> None:
         return
 
     if joined >= target and target > 0:
-        state.phase = "Running"
+        # Stabilization gate: only flip to Running once `setup_ready` has
+        # held continuously for MIN_SETUP_STABLE_SECONDS. This is the core
+        # race fix for CANFAR Milestone B.
+        ready_for = state.setup_ready_seconds
+        if (
+            state.setup_ready
+            and ready_for is not None
+            and ready_for >= MIN_SETUP_STABLE_SECONDS
+        ):
+            state.phase = "Running"
     elif joined >= state.min_joined and joined > 0:
         state.phase = "Degraded"
     elif (
@@ -135,3 +152,42 @@ def _refresh_cluster_phase(state: ClusterState) -> None:
         w.phase in {"CANFAR Failed", "Stopped", "Orphaned"} for w in state.workers
     ):
         state.phase = "Failed"
+
+
+def _refresh_setup_ready(state: ClusterState) -> None:
+    """Mark `setup_ready` once target is met and stable.
+
+    `setup_ready=True` iff at least `worker_count` workers joined Ray AND no
+    worker is still in a transient phase (CANFAR Pending/Running, Ray
+    Joining). `setup_ready_since` records the first instant this condition
+    became True and is preserved across brief transient flaps (joined still
+    at target, just a phase flicker). The latch IS reset when `joined_qty`
+    drops below target, so stale timestamps from a previous cluster lifetime
+    cannot leak into a freshly-created cluster.
+    """
+    active = [w for w in state.workers if w.phase not in TERMINAL_WORKER_PHASES]
+    transients = {"CANFAR Pending", "CANFAR Running", "Ray Joining"}
+    target = state.worker_count or len(state.workers)
+    joined_qty = sum(1 for w in active if w.ray_joined)
+    all_joined = all(w.ray_joined for w in active) if active else False
+    has_transient = any(w.phase in transients for w in active)
+
+    if joined_qty < target:
+        # Count regression (or fresh start): reset the latch so stale
+        # timestamps do not carry over and instantly satisfy the
+        # stabilization gate in `_refresh_cluster_phase`.
+        state.setup_ready = False
+        state.setup_ready_since = None
+        return
+
+    is_ready = target > 0 and all_joined and not has_transient
+    if is_ready:
+        state.setup_ready = True
+        if not state.setup_ready_since:
+            state.setup_ready_since = _utc_now()
+    else:
+        # Brief transient flap (joined still at target, just a phase
+        # flicker): keep the latch so the stabilization clock does not
+        # reset. Defensive against CANFAR headless flapping during the
+        # 10-second stabilization window.
+        state.setup_ready = False

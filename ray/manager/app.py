@@ -770,6 +770,8 @@ def _cluster_payload(state: Any, nodes: list[dict[str, Any]] | None = None) -> d
     payload = {
         "ray_address": ray_address(),
         "manager_ip": manager_pod_ip(),
+        "cluster_setup_ready": state.setup_ready if state else False,
+        "setup_ready_seconds": state.setup_ready_seconds if state else None,
         "ray_version": _settings.ray_version,
         "cluster_id": _settings.cluster_id,
         "heartbeat_path": str(_heartbeat_path()),

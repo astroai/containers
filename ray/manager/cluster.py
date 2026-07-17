@@ -222,8 +222,7 @@ def _create_cluster_body(
     while time.monotonic() < deadline:
         state = reconcile_cluster(canfar=canfar, store=store, state=state) or state
         joined = len(store.joined_workers(state))
-        if joined >= req.worker_count:
-            state.phase = "Running"
+        if state.phase == "Running":
             store.save(state)
             store.log_event("cluster_create_done", phase=state.phase, joined=joined)
             return ClusterCreateResult(state=state, success=True)
@@ -231,14 +230,17 @@ def _create_cluster_body(
         if req.partial_policy == "accept_partial" and joined >= min_joined:
             pending = _pending_workers(state)
             if not pending or all(w.canfar_status in {"Failed", "Error"} for w in pending):
-                state.phase = "Degraded"
-                store.save(state)
-                store.log_event("cluster_create_done", phase=state.phase, joined=joined)
-                return ClusterCreateResult(
-                    state=state,
-                    success=True,
-                    message=f"Partial cluster: {joined}/{req.worker_count} workers joined",
-                )
+                # _refresh_cluster_phase flips to Degraded based on joined counts.
+                # Only declare success once that flip has happened, so a transient
+                # join-then-rejoin does not race the partial-policy path.
+                if state.phase == "Degraded":
+                    store.save(state)
+                    store.log_event("cluster_create_done", phase=state.phase, joined=joined)
+                    return ClusterCreateResult(
+                        state=state,
+                        success=True,
+                        message=f"Partial cluster: {joined}/{req.worker_count} workers joined",
+                    )
 
         failed = [w for w in state.workers if w.phase == "CANFAR Failed"]
         if failed and req.partial_policy == "fail_and_cleanup":
@@ -280,12 +282,13 @@ def _create_cluster_body(
     state = reconcile_cluster(canfar=canfar, store=store, state=state) or state
     joined = len(store.joined_workers(state))
 
-    if joined >= req.worker_count:
-        state.phase = "Running"
+    # _refresh_cluster_phase is the single source of truth for `state.phase`.
+    # If the deadline fired before stabilization flipped us to Running or
+    # Degraded, treat the create as failed rather than racing the reporter.
+    if state.phase == "Running":
         success = True
         message = None
-    elif joined >= min_joined:
-        state.phase = "Degraded"
+    elif state.phase == "Degraded":
         success = True
         message = f"Timeout with partial join: {joined}/{req.worker_count}"
     else:

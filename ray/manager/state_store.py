@@ -61,6 +61,20 @@ class ClusterState:
     preflight: dict[str, Any] | None = None
     workers: list[WorkerRecord] = field(default_factory=list)
     updated_at: str = field(default_factory=_utc_now)
+    setup_ready: bool = False
+    setup_ready_since: str | None = None
+
+    @property
+    def setup_ready_seconds(self) -> float | None:
+        """Seconds since `setup_ready` last became True (None if never set)."""
+        if not self.setup_ready_since:
+            return None
+        try:
+            now = datetime.now(UTC)
+            ts = datetime.fromisoformat(self.setup_ready_since).replace(tzinfo=UTC)
+            return (now - ts).total_seconds()
+        except ValueError:
+            return None
 
 
 class StateStore:
@@ -123,6 +137,8 @@ class StateStore:
             preflight=raw.get("preflight"),
             workers=workers,
             updated_at=raw.get("updated_at", _utc_now()),
+            setup_ready=raw.get("setup_ready", False),
+            setup_ready_since=raw.get("setup_ready_since"),
         )
 
     def save(self, state: ClusterState) -> None:
