@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Literal
@@ -44,9 +45,6 @@ from ui import (
 from worker_logs import archive_session_logs, read_worker_logs
 from workers import destroy_all_workers, destroy_worker, launch_worker
 
-app = FastAPI(title="CANFAR Ray Manager")
-app.include_router(dashboard_router)
-
 _ray_head_proc: subprocess.Popen[str] | None = None
 _settings = ManagerSettings.from_env()
 _store = StateStore(_settings.cluster_id)
@@ -81,8 +79,8 @@ class ClusterCreateBody(BaseModel):
     require_preflight: bool = True
 
 
-@app.on_event("startup")
-def startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     global _ray_head_proc
     _store.ensure_dir()
     if not ray_running():
@@ -92,8 +90,12 @@ def startup() -> None:
             stderr=subprocess.STDOUT,
             text=True,
         )
-    # Always reconcile; destroy ghosts when home-persisted state is terminal.
     gc_terminal_cluster_workers(settings=_settings, canfar=_canfar, store=_store)
+    yield
+
+
+app = FastAPI(title="CANFAR Ray Manager", lifespan=lifespan)
+app.include_router(dashboard_router)
 
 
 @app.get("/healthz")

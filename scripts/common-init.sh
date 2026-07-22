@@ -61,57 +61,16 @@ if [[ ! -f "${_state}/welcomed" ]]; then
     if [[ -t 1 ]]; then
         cat <<'WELCOME'
 
-  ╔══════════════════════════════════════════════════════╗
-  ║       Welcome to CANFAR Lab!                        ║
-  ╚══════════════════════════════════════════════════════╝
+  Welcome to AstroAI on CANFAR!
+  ─────────────────────────────
+  astroai-lab init <name>     New project       astroai-lab guide    Full command list
+  astroai-lab clone <repo>    Clone from GitHub  less /opt/astroai/USAGE.md  Full docs
 
-  Quick start:
-    astroai-lab init myproject          create a new project
-    astroai-lab clone owner/repo        clone a GitHub project (--from-env for shared deps)
-
-  Once you have code:
-    pixi run python analysis.py        run your project
-    git push                            back up to GitHub
-    astroai-lab push                     save everything before closing
-
-  Storage:
-    TMP_SRC_DIR         code + env (see astroai-lab doctor)
-    TMP_SCRATCH_DIR     datasets + caches when mounted
-    ASTROAI_LAB_BIN_DIR  agent CLI installs (scratch when mounted)
-    /arc/home           persistent config in ~/.astroai/lab
-
-  Getting help:
-    astroai-lab paths                    work/scratch/cache paths
-    astroai-lab tools                    tools on PATH (+ versions)
-    astroai-lab check                    quick health check
-    astroai-lab guide                    full command list
-    less /opt/astroai/USAGE.md          detailed usage guide
-
-  AI coding agents (auto-configured — MCP/skills persist on /arc/home):
-    astroai-lab agent install agent      or claude, goose, opencode, codex
-    astroai-lab agent update             refresh skills/rules after image upgrade
-
-  Platform CLIs (canfar, astroai-lab, cadcget — /opt/astroai/venv/cadc):
-    upgrade-cadc-tools.sh list          see versions; --upgrade astroai-lab to bump this session
+  Storage: TMP_SRC_DIR (code)  /scratch (data)  /arc/home (persistent)
+  Agents:  astroai-lab agent install claude|goose|opencode|codex
 WELCOME
         if [[ "${ASTROAI_SESSION_KIND:-}" == "webterm" ]]; then
-            printf '\n\033[1;36m%s\033[0m\n' "  🚀 Welcome to AstroAI Interactive Web Terminal"
-            printf '\033[1;35m%s\033[0m\n' "  ──────────────────────────────────────────────────────────"
-            printf '  %-25s %-25s\n' "Active Session: AstroAI" "User: $(whoami)"
-            printf '  %-25s %-25s\n' "Host: $(hostname)" "Home: $HOME"
-            printf '  %-25s %-25s\n' "Scratch: /scratch" "Starship Prompt: Enabled"
-            printf '\n\033[1;32m%s\033[0m\n' "  Tmux Cheatsheet (Prefix is Ctrl-b):"
-            printf '    %-25s %-25s\n' "c       Create New Tab" "% / \"   Split Pane Vert/Horiz"
-            printf '    %-25s %-25s\n' "n / p   Next/Prev Tab"  "o       Switch Active Pane"
-            printf '    %-25s %-25s\n' "w       List Windows"   "z       Toggle Pane Zoom (Full)"
-            printf '    %-25s %-25s\n' ",       Rename Tab"     "[       Enter Scroll/Copy Mode"
-            printf '    %-25s %-25s\n' "m       Toggle mouse"   "v / y   Select / Yank→clipboard"
-            printf '\n\033[1;32m%s\033[0m\n' "  Copy/paste & files:"
-            printf '    %-25s %s\n' "Mouse drag" "copies to OS clipboard (OSC 52)"
-            printf '    %-25s %s\n' "Paste / Copy" "top bar, right-click menu, or Cmd/Ctrl+V"
-            printf '    %-25s %s\n' "Toggle mouse" "top bar or Ctrl-b m (native select when off)"
-            printf '    %-25s %s\n' "peek FILE" "view markdown / text / archives"
-            printf '\033[1;35m%s\033[0m\n\n' "  ──────────────────────────────────────────────────────────"
+            printf '\n\033[1;36m%s\033[0m\n' "  Tmux: Ctrl-b c (new tab)  Ctrl-b n/p (switch)  Ctrl-b z (zoom)"
         fi
     fi
 fi

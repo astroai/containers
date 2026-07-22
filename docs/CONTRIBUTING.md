@@ -53,7 +53,7 @@ git checkout -b my-change
 | Jupyter config | `config/jupyter_server_config.py` | `notebook` |
 | Marimo starter notebook | **Edit in** [astroai-lab](https://github.com/astroai/astroai-lab) `data/notebooks/starter.py`, then `make sync-marimo-starter` | `marimo` |
 | CADC client list | `config/cadc-tools.txt` | `base`+ |
-| **`astroai-lab` CLI** | `vendor/astroai_lab-*.whl` | `base`+ |
+| **`astroai-lab` CLI** | `config/astroai-lab.in` + `config/astroai-lab.lock` | `base`+ |
 | Ray | `config/ray-deps.txt`, `dockerfiles/ray-*`, `ray/`, `scripts/*ray*` | `make build-ray` |
 | Bake graph, tags | `docker-bake.hcl`, `Makefile` | Depends |
 
@@ -79,16 +79,16 @@ astroai-lab doctor
 uv run python -c "print('ok')"
 ```
 
-## Refresh the vendored `astroai-lab` wheel
+## Refresh the vendored `astroai-lab` lock
 
-Images install from `vendor/`, not PyPI:
+Images install astroai-lab from a pip lockfile, not PyPI:
 
 ```bash
 cd ../astroai-lab
 uv run pytest -q
-uv build
-cp dist/astroai_lab-0.1.0-py3-none-any.whl ../astroai-containers/vendor/
+git tag v0.X.Y  # or bump the git ref in config/astroai-lab.in
 cd ../astroai-containers
+make lock-astroai-lab
 make build-all BUILD_TAG=local
 make test-local BUILD_TAG=local
 make test-ray BUILD_TAG=local
