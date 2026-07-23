@@ -8,6 +8,8 @@
 # Skaha passes the session ID as the first argument to /skaha/startup.sh.
 # The platform also sets JUPYTER_TOKEN to the same value.
 
+export ASTROAI_SESSION_KIND="${ASTROAI_SESSION_KIND:-notebook}"
+export ASTROAI_LAB_ENSURE_KERNEL="${ASTROAI_LAB_ENSURE_KERNEL:-1}"
 source /cadc/common-init.sh
 
 SESSION_ID="${1:-${JUPYTER_TOKEN:-}}"

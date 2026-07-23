@@ -43,6 +43,7 @@ flowchart TB
 | `vscode` | Browser IDE (OpenVSCode Server) | Contributed |
 | `notebook` | JupyterLab | Notebook |
 | `marimo` | Reactive notebooks | Contributed |
+| `openresearch` | OpenResearch (`orx`) autoresearch dashboard | Contributed |
 | `base` | Headless parent (CI / batch) | — |
 | `ray-manager` | Ray head + control panel + Dashboard ([RAY.md](docs/RAY.md)) | Contributed |
 | `ray-worker` | Ray worker CPU or GPU (manager-launched) | Headless |
@@ -98,8 +99,8 @@ examples/ray/  container-local Ray smokes
 ## Design
 
 - **Same images for CPU and GPU** — choose the node in the portal; CUDA/ML stacks via pixi/uv in the project.
-- **Bake graph:** `python` → `base` → `webterm` / `vscode` / `notebook` / `marimo`; Ray adds `ray-base` → `ray-manager` / `ray-worker` (same `TAG` as `base`).
-- **Fast session disks:** `TMP_SRC_DIR` (`/srcdir`) for code, `TMP_SCRATCH_DIR` (`/scratch`) for data and caches; persist with `astroai-lab` to `/arc`.
+- **Bake graph:** `python` → `base` → `webterm` / `vscode` / `notebook` / `marimo` / `openresearch`; Ray adds `ray-base` → `ray-manager` / `ray-worker` (same `TAG` as `base`).
+- **Fast session disks:** `TMP_SRC_DIR` (`/srcdir`) for code, `TMP_SCRATCH_DIR` (`/scratch`) for data and caches; hourly backup + `astroai-lab` persist to `/arc`.
 - **Skaha types:** Contributed listen on **5000**; Notebook on **8888**.
 - **Auth at the edge:** Session UIs trust CANFAR TLS + portal login. Use these images only behind an authenticating reverse proxy.
 

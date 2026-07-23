@@ -67,6 +67,7 @@ if [[ ! -f "${_state}/welcomed" ]]; then
   astroai-lab clone <repo>    Clone from GitHub  less /opt/astroai/USAGE.md  Full docs
 
   Storage: TMP_SRC_DIR (code)  /scratch (data)  /arc/home (persistent)
+  Backup:  hourly → ~/.astroai/lab/backups/<session>  (astroai-lab backup status)
   Agents:  astroai-lab agent install claude|goose|opencode|codex
 WELCOME
         if [[ "${ASTROAI_SESSION_KIND:-}" == "webterm" ]]; then
@@ -82,13 +83,17 @@ fi
 if command -v astroai-lab >/dev/null 2>&1; then
   # Apply cache redirects for this process tree.
   eval "$(astroai-lab env export 2>/dev/null)" || true
-  # Best-effort scratch-safe default kernel (no-op without jupyter/ipykernel).
-  astroai-lab kernel ensure --name astroai >/dev/null 2>&1 || true
+  # Scratch-safe default kernel — notebook sessions only (slow pip install).
+  if [[ "${ASTROAI_SESSION_KIND:-}" == "notebook" || "${ASTROAI_LAB_ENSURE_KERNEL:-}" == "1" ]]; then
+    astroai-lab kernel ensure --name astroai >/dev/null 2>&1 || true
+  fi
   # Agent configs (MCP, rules, skills, model presets) — idempotent;
   # persists on /arc/home. First run clones upstream skills (~30s);
   # subsequent sessions are instant. Agent binaries installed on-demand
   # via `astroai-lab agent install <tool>` (lightweight, no image bloat).
   astroai-lab --yes agent setup >/dev/null 2>&1 || true
+  # Hourly /srcdir → /arc/home backup (opt-out: ASTROAI_LAB_BACKUP_ENABLED=false).
+  astroai-lab backup start >/dev/null 2>&1 || true
 fi
 
 unset ASTROAI_LAB_PROFILE_LOADED

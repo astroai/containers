@@ -49,7 +49,7 @@ flowchart LR
 ### From the portal
 
 1. Log in at [canfar.net/science-portal](https://www.canfar.net/science-portal).
-2. Pick an AstroAI image (`webterm`, `vscode`, `notebook`, `marimo`, or `ray-manager`).
+2. Pick an AstroAI image (`webterm`, `vscode`, `notebook`, `marimo`, `openresearch`, or `ray-manager`).
 3. Choose resources (CPU / memory / GPU node as needed).
 4. Open the connect URL when the session is **Running**.
 
@@ -102,6 +102,10 @@ astroai-lab data sync /scratch/out /arc/projects/mygroup/out
 ```
 
 Env snapshots: `astroai-lab save` / `resume` → default `~/.astroai/lab/saves/`.
+
+**Automatic work backup:** sessions start an hourly rsync of `/srcdir` →
+`~/.astroai/lab/backups/<session-id>/` on `/arc/home`. Check with
+`astroai-lab backup status`. Opt out: `ASTROAI_LAB_BACKUP_ENABLED=false`.
 
 Team layout: `astroai-lab project init <group> --members …`
 
@@ -298,6 +302,28 @@ in a webterm and restart your marimo session.
 
 ---
 
+## OpenResearch (autoresearch)
+
+The **openresearch** image (`images.canfar.net/astroai/openresearch`) runs the
+[OpenResearch](https://openresearch.sh/) local dashboard (`orx up`) as a
+contributed session on port **5000**.
+
+1. Launch **openresearch** from the portal (or `canfar create … contributed images.canfar.net/astroai/openresearch:<tag>`).
+2. Open the Connect URL — you get the `orx` UI (agent chat, experiment tree, Autoresearch).
+3. Install a harness if needed (once, persists on `/arc/home`):
+   ```bash
+   # from a webterm, or the openresearch session shell if available
+   astroai-lab agent install claude   # or codex / opencode
+   ```
+4. In the UI, pick Claude Code / Codex / OpenCode and give Autoresearch a goal
+   against your project under `/srcdir`.
+5. Optional cloud features: `orx login` (stores token under `~/.config/openresearch/`).
+
+Work under `/srcdir` is still ephemeral — the hourly backup and `astroai-lab push`
+cover persistence. Prefer GPU nodes for training loops.
+
+---
+
 ## Session notes
 
 | Image | Port / path notes |
@@ -305,6 +331,7 @@ in a webterm and restart your marimo session.
 | `webterm` | Contributed `:5000` — ttyd + tmux |
 | `vscode` | Contributed `:5000` — OpenVSCode; base-path set for `/session/contrib/<id>/` |
 | `marimo` | Contributed `:5000` — listens at `/` (ingress strips the contrib prefix) |
+| `openresearch` | Contributed `:5000` — `orx` on loopback `:4791`, proxied to `:5000` |
 | `notebook` | Notebook `:8888` — Jupyter `base_url` is `session/notebook/<id>` |
 | `ray-manager` | See [RAY.md](RAY.md) — Dashboard at `connectURL/dashboard/` |
 
@@ -341,7 +368,7 @@ astroai-lab tools
 
 | Symptom | Action |
 |---------|--------|
-| Lost files after session end | They were on `/srcdir` or `/scratch` — sync to `/arc` next time before exit |
+| Lost files after session end | They were on `/srcdir` or `/scratch` — check `~/.astroai/lab/backups/` or sync to `/arc` next time before exit |
 | Home quota full | `astroai-lab status`; `astroai-lab clean home --all-safe --dry-run` |
 | Caches under `$HOME` | Use a login shell; `astroai-lab doctor` |
 | Session stuck **Pending** | Check `canfar ps` / `canfar events`. Stuck **contributed/notebook** sessions consume the (≈3) session quota — prune to free slots. **Headless kinds are quota-exempt** — a Pending headless is the [Skaha scheduling flake](OPERATORS.md#platform-notes-headless-pending), not a quota issue |

@@ -9,11 +9,12 @@
 #   ./scripts/test-canfar-session.sh notebook 26.07
 #   ./scripts/test-canfar-session.sh vscode 26.07
 #   ./scripts/test-canfar-session.sh marimo 26.07
+#   ./scripts/test-canfar-session.sh openresearch 26.07
 #
 # Environment:
 #   REGISTRY, OWNER, CANFAR_TEST_TIMEOUT (default 900)
 
-IMAGE="${1:?image name required (webterm|notebook|vscode|marimo|ray-manager)}"
+IMAGE="${1:?image name required (webterm|notebook|vscode|marimo|openresearch|ray-manager)}"
 TAG="${2:-${TAG:-latest}}"
 OWNER="${OWNER:-astroai}"
 REGISTRY="${REGISTRY:-images.canfar.net}"

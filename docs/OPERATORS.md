@@ -30,6 +30,7 @@ flowchart LR
 | `vscode` | `…/astroai/vscode:<tag>` | Contributed | 5000 | Yes |
 | `notebook` | `…/astroai/notebook:<tag>` | Notebook | 8888 | Yes |
 | `marimo` | `…/astroai/marimo:<tag>` | Contributed | 5000 | Yes |
+| `openresearch` | `…/astroai/openresearch:<tag>` | Contributed | 5000 | Yes |
 | `ray-manager` | `…/astroai/ray-manager:<tag>` | Contributed | 5000 | Yes |
 | `ray-worker` | `…/astroai/ray-worker:<tag>` | Headless | — | No — manager launches |
 

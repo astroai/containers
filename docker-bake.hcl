@@ -17,7 +17,7 @@ variable "PYTHON_VERSION" {
 }
 
 group "default" {
-  targets = ["base", "webterm", "notebook", "vscode", "marimo"]
+  targets = ["base", "webterm", "notebook", "vscode", "marimo", "openresearch"]
 }
 
 target "python" {
@@ -78,6 +78,17 @@ target "marimo" {
   inherits   = ["_interface"]
   dockerfile = "dockerfiles/marimo/Dockerfile"
   tags       = ["${REGISTRY}/${OWNER}/marimo:${TAG}"]
+}
+
+target "openresearch" {
+  inherits   = ["_interface"]
+  dockerfile = "dockerfiles/openresearch/Dockerfile"
+  tags       = ["${REGISTRY}/${OWNER}/openresearch:${TAG}"]
+  args = {
+    ORX_VERSION      = "0.1.76"
+    ORX_SHA256_X64   = "8bc1d10c1a511ecb4935e4eac911b6525c7e8c051b9302422859a6fe26bfe93d"
+    ORX_SHA256_ARM64 = "0e8c7d000db569102f47a17d062478f7b376e59b30f2b2b1d27b86e7dc5ab41f"
+  }
 }
 
 # Ray cluster images (extend base in same bake — shared TAG/deps)
