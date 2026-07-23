@@ -88,13 +88,13 @@ push/%:
 	docker push $(IMAGE_PREFIX)/$(notdir $@):latest
 
 lock-ray: ## regenerate config/ray-deps.lock from config/ray-deps.txt (Python 3.12, Ray).
-	uv pip compile --python-version 3.12 --output-file config/ray-deps.lock config/ray-deps.txt
+	UV_NO_CACHE=1 uv pip compile --python-version 3.12 --output-file config/ray-deps.lock config/ray-deps.txt
 
 lock-astroai-lab: ## regenerate config/astroai-lab.lock from the SHA pin in config/astroai-lab.in.
 	uv pip compile --python-version 3.13 --output-file config/astroai-lab.lock config/astroai-lab.in
 
 lock-check: ## fail CI if either lockfile's package body drifts from its source. The uv-generated header (3 lines) is stripped before comparison so output paths in the embedded command line don't cause false-positive drift.
-	uv pip compile --python-version 3.12 --output-file /tmp/__ray.lock config/ray-deps.txt
+	UV_NO_CACHE=1 uv pip compile --python-version 3.12 --output-file /tmp/__ray.lock config/ray-deps.txt
 	tail -n +4 /tmp/__ray.lock > /tmp/__ray.body
 	tail -n +4 config/ray-deps.lock > /tmp/__ray.committed.body
 	cmp -s /tmp/__ray.body /tmp/__ray.committed.body || { echo "ray-deps.lock drift — run make lock-ray" >&2; exit 1; }

@@ -229,18 +229,20 @@ def _create_cluster_body(
 
         if req.partial_policy == "accept_partial" and joined >= min_joined:
             pending = _pending_workers(state)
-            if not pending or all(w.canfar_status in {"Failed", "Error"} for w in pending):
-                # _refresh_cluster_phase flips to Degraded based on joined counts.
-                # Only declare success once that flip has happened, so a transient
-                # join-then-rejoin does not race the partial-policy path.
-                if state.phase == "Degraded":
-                    store.save(state)
-                    store.log_event("cluster_create_done", phase=state.phase, joined=joined)
-                    return ClusterCreateResult(
-                        state=state,
-                        success=True,
-                        message=f"Partial cluster: {joined}/{req.worker_count} workers joined",
-                    )
+            # _refresh_cluster_phase flips to Degraded based on joined counts.
+            # Only declare success once that flip has happened, so a transient
+            # join-then-rejoin does not race the partial-policy path.
+            if (
+                (not pending or all(w.canfar_status in {"Failed", "Error"} for w in pending))
+                and state.phase == "Degraded"
+            ):
+                store.save(state)
+                store.log_event("cluster_create_done", phase=state.phase, joined=joined)
+                return ClusterCreateResult(
+                    state=state,
+                    success=True,
+                    message=f"Partial cluster: {joined}/{req.worker_count} workers joined",
+                )
 
         failed = [w for w in state.workers if w.phase == "CANFAR Failed"]
         if failed and req.partial_policy == "fail_and_cleanup":

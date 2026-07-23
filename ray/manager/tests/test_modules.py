@@ -550,10 +550,16 @@ class TestEnrichWorkerFailure:
 
 class TestRefreshClusterPhase:
     def test_all_joined_running(self) -> None:
+        from datetime import UTC, datetime, timedelta
+
+        # Stabilization gate requires setup_ready for MIN_SETUP_STABLE_SECONDS.
+        since = (datetime.now(UTC) - timedelta(seconds=30)).isoformat()
         state = _state(
             phase="Creating",
             worker_count=2,
             min_joined=2,
+            setup_ready=True,
+            setup_ready_since=since,
             workers=[
                 WorkerRecord(session_id="w1", name="w1", phase="Ray Healthy", ray_joined=True),
                 WorkerRecord(session_id="w2", name="w2", phase="Ray Healthy", ray_joined=True),

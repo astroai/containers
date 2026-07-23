@@ -23,7 +23,6 @@ from state_store import (
 )
 from worker_logs import archive_session_logs, read_worker_logs
 
-
 # Wait this long after joined >= worker_count before declaring the cluster
 # fully formed. Prevents the test/poll layer from racing the cluster-formation
 # step on CANFAR (Milestone B observed joined_workers=0 on stable joins).

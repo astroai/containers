@@ -1,3 +1,3 @@
 # Ray stack (Python 3.12 venv — Ray has no cp313 wheels yet).
-# Unpinned — same image tag keeps manager/worker Ray versions aligned.
-ray[default]
+# Pin the Ray version so manager/worker stay aligned and lock-check is stable.
+ray[default]==2.56.0
