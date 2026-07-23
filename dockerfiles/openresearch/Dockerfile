@@ -23,9 +23,7 @@ LABEL io.canfar.skaha.session.type="contributed" \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    socat \
-    && rm -rf /var/lib/apt/lists/*
+# No socat — path-rewriting proxy is scripts/lib/orx-canfar-proxy.py (stdlib).
 
 RUN ARCH="$(uname -m)" \
     && case "${ARCH}" in \
@@ -46,9 +44,11 @@ ENV PATH="/opt/astroai/bin:${PATH}" \
     ORX_NO_UPDATE_CHECK=1 \
     ASTROAI_SESSION_KIND=openresearch
 
+COPY scripts/lib/skaha-proxy.sh scripts/lib/orx-canfar-proxy.py /opt/astroai/lib/
 COPY scripts/common-init.sh scripts/startup-openresearch.sh /cadc/
 COPY scripts/skaha-startup-openresearch.sh /skaha/startup.sh
-RUN chmod a+rx /cadc/*.sh /skaha/startup.sh
+RUN chmod a+rx /opt/astroai/lib/orx-canfar-proxy.py /cadc/*.sh /skaha/startup.sh \
+    && chmod a+r /opt/astroai/lib/skaha-proxy.sh
 
 EXPOSE 5000
 

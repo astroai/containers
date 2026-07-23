@@ -1,8 +1,11 @@
 #!/bin/bash -e
 # OpenResearch (orx) dashboard on port 5000 (CANFAR contributed).
-# Upstream binds 127.0.0.1:4791; socat fronts 0.0.0.0:5000 for ingress.
+# Upstream binds 127.0.0.1:4791; canfar proxy rewrites absolute /api /assets
+# paths so the SPA works under /session/contrib/<id>/.
 
 source /cadc/common-init.sh
+# shellcheck disable=SC1091
+source /opt/astroai/lib/skaha-proxy.sh
 
 export ORX_NO_UPDATE_CHECK=1
 export PATH="/opt/astroai/bin:${PATH}"
@@ -19,19 +22,20 @@ if command -v orx >/dev/null 2>&1; then
 fi
 
 ORX_PORT="${ORX_PORT:-4791}"
-PUBLIC_PORT="${ASTROAI_OPENRESEARCH_PORT:-5000}"
+export ORX_PORT
+export ASTROAI_OPENRESEARCH_PORT="${ASTROAI_OPENRESEARCH_PORT:-5000}"
 
 orx --no-telemetry up --port "${ORX_PORT}" --no-browser &
 ORX_PID=$!
 
 cleanup() {
-    kill "${SOCAT_PID:-}" "${ORX_PID}" 2>/dev/null || true
-    wait "${SOCAT_PID:-}" "${ORX_PID}" 2>/dev/null || true
+    kill "${PROXY_PID:-}" "${ORX_PID}" 2>/dev/null || true
+    wait "${PROXY_PID:-}" "${ORX_PID}" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
 # Wait until orx is accepting connections.
-for _ in $(seq 1 60); do
+for _ in $(seq 1 90); do
     if curl -fsS "http://127.0.0.1:${ORX_PORT}/" >/dev/null 2>&1; then
         break
     fi
@@ -42,13 +46,10 @@ for _ in $(seq 1 60); do
     sleep 0.5
 done
 
-# CANFAR contributed ingress strips /session/contrib/<id>; serve at /.
-# TCP proxy preserves HTTP, SSE, and websockets without a base-path.
-socat \
-    TCP-LISTEN:"${PUBLIC_PORT}",fork,reuseaddr,bind=0.0.0.0 \
-    TCP:127.0.0.1:"${ORX_PORT}" &
-SOCAT_PID=$!
+# Path-rewriting reverse proxy (not raw TCP) so absolute /assets and /api
+# URLs stay under /session/contrib/<skaha_sessionid>/.
+python3 /opt/astroai/lib/orx-canfar-proxy.py &
+PROXY_PID=$!
 
-# Exit when either process dies.
-wait -n "${ORX_PID}" "${SOCAT_PID}"
+wait -n "${ORX_PID}" "${PROXY_PID}"
 exit $?

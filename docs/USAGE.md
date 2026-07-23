@@ -331,7 +331,7 @@ cover persistence. Prefer GPU nodes for training loops.
 | `webterm` | Contributed `:5000` — ttyd + tmux |
 | `vscode` | Contributed `:5000` — OpenVSCode; base-path set for `/session/contrib/<id>/` |
 | `marimo` | Contributed `:5000` — listens at `/` (ingress strips the contrib prefix) |
-| `openresearch` | Contributed `:5000` — `orx` on loopback `:4791`, proxied to `:5000` |
+| `openresearch` | Contributed `:5000` — `orx` on loopback `:4791`, path-rewriting proxy on `:5000` (absolute `/api`/`/assets` → `/session/contrib/<id>/…`) |
 | `notebook` | Notebook `:8888` — Jupyter `base_url` is `session/notebook/<id>` |
 | `ray-manager` | See [RAY.md](RAY.md) — Dashboard at `connectURL/dashboard/` |
 
