@@ -14,7 +14,7 @@ This file ships inside images as `/opt/astroai/USAGE.md`.
 
 ## Scientist card
 
-1. Portal → launch **webterm**, **vscode**, **notebook**, **marimo**, **openresearch**, or **ray-manager**.
+1. Portal → launch **webterm**, **vscode**, **notebook**, **marimo**, **openresearch**, **openworker**, or **ray-manager**.
 2. Inside: `astroai-lab` · `astroai-lab guide` · `less /opt/astroai/USAGE.md`
 3. Work under `/srcdir` (code) and `/scratch` (data/caches).
 4. Persist to `/arc/home` or `/arc/projects` before the session ends (`save` / `data sync` / `push`).
@@ -38,6 +38,8 @@ canfar open <session-id>
 | Projects | `/arc/projects/<group>` | Persistent | **Yes** (group ACLs) |
 
 `/scratch` is fast and private to **this** session. Use `/arc/projects/…` (or home) when another session needs the same files live; move with `astroai-lab data sync` / `data stage`.
+
+**Home quota %:** CANFAR homes use CephFS directory quotas (`ceph.quota.max_bytes`). `astroai-lab status` prefers those xattrs; `ceph.dir.rbytes` can lag a few seconds after large writes — that is Ceph MDS accounting, not a frozen UI cache. Refresh with `astroai-lab status` (or the Agents / Resources panel).
 
 ```bash
 astroai-lab paths
@@ -68,8 +70,9 @@ Put env saves on `/arc` (`~/.astroai/lab/saves/` or `/arc/projects/<group>/env-s
 ```bash
 astroai-lab init mylab          # or clone owner/repo
 astroai-lab save / resume / push --yes
-astroai-lab agent setup         # once (opt-in at startup too: ASTROAI_LAB_AGENT_SETUP=1)
+astroai-lab agent setup         # once (UI sessions auto-run in background; webterm opt-in)
 astroai-lab agent install claude
+# Or open /astroai-agents/ in openresearch / openworker for the Agents wizard
 astroai-lab kernel ensure       # notebook
 astroai-lab notebook starter
 astroai-lab doctor
@@ -87,7 +90,8 @@ Compilers and editors are in interactive images; put CUDA/ML stacks in your pixi
 | `vscode` | OpenVSCode on `:5000` |
 | `marimo` | Reactive `.py` notebooks; starter seeded once under `/srcdir/notebooks` |
 | `notebook` | JupyterLab `:8888`. Stock Skaha may run platform Jupyter CMD — AstroAI `startup-notebook.sh` only with a platform override ([OPERATORS.md](OPERATORS.md)) |
-| `openresearch` | Autoresearch UI (`orx`) on `:5000` |
+| `openresearch` | Autoresearch UI (`orx`) on `:5000`; Agents wizard at `/astroai-agents/` |
+| `openworker` | OpenWorker browser UI + local agent server on `:5000` (no Tauri); Agents wizard at `/astroai-agents/` |
 | `ray-manager` | Cluster UI + Ray head; see Ray section |
 
 CADC clients (`cadcget`, `vls`, …) are on PATH from `/opt/astroai/venv/cadc`.

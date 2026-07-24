@@ -44,10 +44,12 @@ ENV PATH="/opt/astroai/bin:${PATH}" \
     ORX_NO_UPDATE_CHECK=1 \
     ASTROAI_SESSION_KIND=openresearch
 
-COPY scripts/lib/skaha-proxy.sh scripts/lib/orx-canfar-proxy.py /opt/astroai/lib/
+COPY scripts/lib/skaha-proxy.sh scripts/lib/orx-canfar-proxy.py \
+     scripts/lib/agent-wizard.py /opt/astroai/lib/
 COPY scripts/common-init.sh scripts/startup-openresearch.sh /cadc/
 COPY scripts/skaha-startup-openresearch.sh /skaha/startup.sh
-RUN chmod a+rx /opt/astroai/lib/orx-canfar-proxy.py /cadc/*.sh /skaha/startup.sh \
+RUN chmod a+rx /opt/astroai/lib/orx-canfar-proxy.py /opt/astroai/lib/agent-wizard.py \
+        /cadc/*.sh /skaha/startup.sh \
     && chmod a+r /opt/astroai/lib/skaha-proxy.sh
 
 EXPOSE 5000

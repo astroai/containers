@@ -17,7 +17,7 @@ variable "PYTHON_VERSION" {
 }
 
 group "default" {
-  targets = ["base", "webterm", "notebook", "vscode", "marimo", "openresearch"]
+  targets = ["base", "webterm", "notebook", "vscode", "marimo", "openresearch", "openworker"]
 }
 
 target "python" {
@@ -88,6 +88,15 @@ target "openresearch" {
     ORX_VERSION      = "0.1.76"
     ORX_SHA256_X64   = "8bc1d10c1a511ecb4935e4eac911b6525c7e8c051b9302422859a6fe26bfe93d"
     ORX_SHA256_ARM64 = "0e8c7d000db569102f47a17d062478f7b376e59b30f2b2b1d27b86e7dc5ab41f"
+  }
+}
+
+target "openworker" {
+  inherits   = ["_interface"]
+  dockerfile = "dockerfiles/openworker/Dockerfile"
+  tags       = ["${REGISTRY}/${OWNER}/openworker:${TAG}"]
+  args = {
+    OPENWORKER_SHA = "4766e59c47c0201cbecb22b0e22cc1d0b188446b"
   }
 }
 

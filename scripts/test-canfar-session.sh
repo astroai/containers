@@ -14,7 +14,7 @@
 # Environment:
 #   REGISTRY, OWNER, CANFAR_TEST_TIMEOUT (default 900)
 
-IMAGE="${1:?image name required (webterm|notebook|vscode|marimo|openresearch|ray-manager)}"
+IMAGE="${1:?image name required (webterm|notebook|vscode|marimo|openresearch|openworker|ray-manager)}"
 TAG="${2:-${TAG:-latest}}"
 OWNER="${OWNER:-astroai}"
 REGISTRY="${REGISTRY:-images.canfar.net}"

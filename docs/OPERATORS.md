@@ -31,6 +31,7 @@ flowchart LR
 | `notebook` | `…/astroai/notebook:<tag>` | Notebook | 8888 | Yes |
 | `marimo` | `…/astroai/marimo:<tag>` | Contributed | 5000 | Yes |
 | `openresearch` | `…/astroai/openresearch:<tag>` | Contributed | 5000 | Yes |
+| `openworker` | `…/astroai/openworker:<tag>` | Contributed | 5000 | Yes |
 | `ray-manager` | `…/astroai/ray-manager:<tag>` | Contributed | 5000 | Yes |
 | `ray-worker` | `…/astroai/ray-worker:<tag>` | Headless | — | No — manager launches |
 
@@ -93,11 +94,11 @@ entrypoint, ask the science-platform team for a per-image override that sets
 ## Science Portal checklist
 
 1. Push `images.canfar.net/astroai/*:<tag>` (sessions + Ray).
-2. Register Contributed: `webterm`, `vscode`, `marimo`, `openresearch`, `ray-manager` → port **5000**.
+2. Register Contributed: `webterm`, `vscode`, `marimo`, `openresearch`, `openworker`, `ray-manager` → port **5000**.
 3. Register Notebook: `notebook` → port **8888**.
 4. Leave `base`, `ray-base`, and `ray-worker` off the interactive catalog.
 5. Document the published tag for users (`YY.MM`).
-6. Smoke: `make test-canfar-session IMAGE=webterm TAG=…`, `IMAGE=openresearch`, and `make test-canfar-ray TAG=…`.
+6. Smoke: `make test-canfar-session IMAGE=webterm TAG=…`, `IMAGE=openresearch`, `IMAGE=openworker`, and `make test-canfar-ray TAG=…`.
 
 ## Local smoke
 
@@ -125,7 +126,15 @@ make test-canfar-session IMAGE=webterm TAG=26.07
 make test-canfar-session IMAGE=vscode TAG=26.07
 make test-canfar-session IMAGE=marimo TAG=26.07
 make test-canfar-session IMAGE=notebook TAG=26.07
+make test-canfar-session IMAGE=openresearch TAG=26.07
+make test-canfar-session IMAGE=openworker TAG=26.07
 ```
+
+**OpenWorker notes:** Image pins `OPENWORKER_SHA` (see `docker-bake.hcl`). Browser UI + `openworker-server` only — no Tauri desktop shell. Desktop-only connectors may be limited on CANFAR. Agents wizard: `/astroai-agents/` (also on openresearch).
+
+**Agent auto-setup:** UI kinds (`openresearch`, `openworker`, `vscode`) default `ASTROAI_LAB_AGENT_SETUP=bg` when unset. **Marimo** stays opt-in for full setup (startup still runs `agent setup marimo` only). Webterm stays opt-in. Failures never block the main UI; see `~/.astroai/lab/agent-setup.log`.
+
+**Home quota readings:** Prefer CephFS xattrs over raw `df` (`astroai-lab` `disk_usage`). `ceph.dir.rbytes` can lag after writes — expected Ceph behavior.
 
 **Headless in-image verify** (`canfar-verify.sh`):
 

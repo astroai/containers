@@ -87,15 +87,48 @@ if command -v astroai-lab >/dev/null 2>&1; then
   if [[ "${ASTROAI_SESSION_KIND:-}" == "notebook" || "${ASTROAI_LAB_ENSURE_KERNEL:-}" == "1" ]]; then
     astroai-lab kernel ensure --name astroai >/dev/null 2>&1 || true
   fi
-  # Agent configs (MCP, rules, skills) — opt-in. First run can take ~30s.
+  # Agent configs (MCP, rules, skills). UI sessions default to background setup;
+  # webterm stays opt-in so terminal users are not surprised.
+  #   ASTROAI_LAB_AGENT_SETUP=0     skip (explicit)
   #   ASTROAI_LAB_AGENT_SETUP=1     run in foreground before UI
-  #   ASTROAI_LAB_AGENT_SETUP=bg    run in background (default off)
-  case "${ASTROAI_LAB_AGENT_SETUP:-0}" in
+  #   ASTROAI_LAB_AGENT_SETUP=bg    run in background
+  _agent_setup="${ASTROAI_LAB_AGENT_SETUP:-}"
+  if [[ -z "${_agent_setup}" ]]; then
+    case "${ASTROAI_SESSION_KIND:-}" in
+      # marimo runs its own `agent setup marimo` in startup — avoid lock race.
+      openresearch|openworker|vscode) _agent_setup=bg ;;
+      *) _agent_setup=0 ;;
+    esac
+  fi
+  _agent_state="${HOME}/.astroai/lab"
+  _agent_log="${_agent_state}/agent-setup.log"
+  _agent_needs_run=0
+  if [[ ! -f "${_agent_state}/agent-setup-stamp" || -f "${_agent_state}/agent-setup-failed" ]]; then
+    _agent_needs_run=1
+  fi
+  _run_agent_setup() {
+    mkdir -p "${_agent_state}"
+    touch "${_agent_state}/agent-setup-pending"
+    {
+      echo "---- $(date -u +%Y-%m-%dT%H:%M:%SZ) agent setup start kind=${ASTROAI_SESSION_KIND:-} ----"
+      astroai-lab --yes agent setup
+      _rc=$?
+      echo "---- $(date -u +%Y-%m-%dT%H:%M:%SZ) agent setup end exit=${_rc} ----"
+      rm -f "${_agent_state}/agent-setup-pending"
+      return "${_rc}"
+    } >>"${_agent_log}" 2>&1 || true
+    rm -f "${_agent_state}/agent-setup-pending"
+  }
+  case "${_agent_setup}" in
     1|true|yes)
-      astroai-lab --yes agent setup >/dev/null 2>&1 || true
+      if [[ "${_agent_needs_run}" == "1" ]]; then
+        _run_agent_setup || true
+      fi
       ;;
     bg|background)
-      (astroai-lab --yes agent setup >/dev/null 2>&1 || true) &
+      if [[ "${_agent_needs_run}" == "1" ]]; then
+        (_run_agent_setup || true) &
+      fi
       ;;
   esac
   # Hourly /srcdir → /arc/home backup (opt-out: ASTROAI_LAB_BACKUP_ENABLED=false).

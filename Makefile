@@ -9,7 +9,7 @@ PYTHON_VERSION ?= 3.13
 
 export OWNER REGISTRY PYTHON_VERSION
 
-SESSION_IMAGES := base webterm notebook vscode marimo openresearch
+SESSION_IMAGES := base webterm notebook vscode marimo openresearch openworker
 RAY_IMAGES := ray-manager ray-worker
 IMAGE_PREFIX := $(REGISTRY)/$(OWNER)
 
@@ -106,7 +106,7 @@ lock-check: ## fail CI if either lockfile's package body drifts from its source.
 
 test-local: ## verify session images (parallel)
 	@fails=0; pids=(); \
-	for img in webterm notebook vscode marimo openresearch base; do \
+	for img in webterm notebook vscode marimo openresearch openworker base; do \
 		./scripts/test-local.sh "$$img" --verify-only & pids+=($$!); \
 	done; \
 	for pid in "$${pids[@]}"; do wait "$$pid" || fails=$$((fails + 1)); done; \

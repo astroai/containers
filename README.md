@@ -44,6 +44,7 @@ flowchart TB
 | `notebook` | JupyterLab | Notebook |
 | `marimo` | Reactive notebooks | Contributed |
 | `openresearch` | OpenResearch (`orx`) autoresearch dashboard | Contributed |
+| `openworker` | OpenWorker browser UI + local agent server (no Tauri) | Contributed |
 | `base` | Headless parent (CI / batch) | — |
 | `ray-manager` | Ray head + control panel + Dashboard ([RAY.md](docs/RAY.md)) | Contributed |
 | `ray-worker` | Ray worker CPU or GPU (manager-launched) | Headless |
