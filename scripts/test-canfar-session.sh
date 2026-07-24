@@ -19,6 +19,16 @@ TAG="${2:-${TAG:-latest}}"
 OWNER="${OWNER:-astroai}"
 REGISTRY="${REGISTRY:-images.canfar.net}"
 TIMEOUT="${CANFAR_TEST_TIMEOUT:-900}"
+# canfar create can time out client-side while Skaha still accepts the session
+# (especially on cold image pulls). Cap at the CLI max (≤300s); the wait loop
+# below still uses TIMEOUT for Running/HTTP readiness.
+# CLI rejects values >300 (pydantic le=300); clamp so a large wait TIMEOUT never breaks create.
+_raw_ct="${CANFAR_TIMEOUT:-300}"
+if [[ "${_raw_ct}" -gt 300 ]]; then
+    echo "Warning: CANFAR_TIMEOUT=${_raw_ct} exceeds CLI max 300; clamping." >&2
+    _raw_ct=300
+fi
+export CANFAR_TIMEOUT="${_raw_ct}"
 FULL_IMAGE="${REGISTRY}/${OWNER}/${IMAGE}:${TAG}"
 TAG_SAFE="$(printf '%s' "${TAG}" | tr '.:/+' '-' | tr -cd 'a-zA-Z0-9-')"
 SESSION_NAME="astroai-sess-${IMAGE}-${TAG_SAFE}-$(date -u +%Y%m%d%H%M%S)"
@@ -96,10 +106,18 @@ if ! canfar auth show >/dev/null 2>&1; then
     exit 1
 fi
 
+# Capture create output without `|| \` under `set -e` — failed creates often
+# still land in Skaha, and fragile `||` continuations have mis-executed the
+# canfar banner (`@canfar`) as a shell command when CREATE_OUT was replayed.
+set +e
 CREATE_OUT="$(canfar create --name "${SESSION_NAME}" --cpu "${CPU}" \
-    --memory "${MEMORY}" "${KIND}" "${FULL_IMAGE}" 2>&1)" || \
-    echo "Warning: canfar create exited non-zero — will probe by name." >&2
-echo "${CREATE_OUT}"
+    --memory "${MEMORY}" "${KIND}" "${FULL_IMAGE}" 2>&1)"
+CREATE_RC=$?
+set -e
+if [[ "${CREATE_RC}" -ne 0 ]]; then
+    echo "Warning: canfar create exited ${CREATE_RC} — will probe by name." >&2
+fi
+printf '%s\n' "${CREATE_OUT}"
 
 SESSION_ID="$(
     printf '%s\n' "${CREATE_OUT}" \
@@ -113,8 +131,11 @@ SESSION_ID="$(
 # still accepts the session. Probe by name as a fallback — mirrors
 # test-canfar.sh / test-canfar-ray.sh so we never leave Skaha-created
 # orphans behind that would consume the user's 3-session quota.
-if [[ -z "${SESSION_ID}" ]]; then
-    SESSION_ID="$(canfar ps -a --json 2>/dev/null | python3 -c "
+#
+# Catalog lag is common after a client-side create timeout: retry the name
+# probe with backoff before declaring failure.
+resolve_session_id_by_name() {
+    canfar ps -a --json 2>/dev/null | python3 -c "
 import json, sys
 raw = sys.stdin.read().strip()
 for m in ('[', '{'):
@@ -132,7 +153,17 @@ for r in rows:
     if r.get('name') == sys.argv[1]:
         print(r.get('id') or '')
         break
-" "${SESSION_NAME}" 2>/dev/null || true)"
+" "${SESSION_NAME}" 2>/dev/null || true
+}
+if [[ -z "${SESSION_ID}" ]]; then
+    for _try in 1 2 3 4 5 6; do
+        SESSION_ID="$(resolve_session_id_by_name)"
+        if [[ -n "${SESSION_ID}" ]]; then
+            echo "Resolved session ID via name probe (attempt ${_try}): ${SESSION_ID}"
+            break
+        fi
+        sleep $(( _try * 2 ))
+    done
 fi
 if [[ -z "${SESSION_ID}" ]]; then
     echo "Could not resolve session ID for ${SESSION_NAME}." >&2
