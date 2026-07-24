@@ -21,6 +21,8 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.12"
+          # Pin so lock-check resolution matches committed lockfiles.
+          version: "0.11.32"
 
       - name: Sync manager project (runtime + dev deps)
         working-directory: ray/manager

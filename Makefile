@@ -88,21 +88,30 @@ push/%:
 	docker push $(IMAGE_PREFIX)/$(notdir $@):latest
 
 lock-ray: ## regenerate config/ray-deps.lock from config/ray-deps.txt (Python 3.12, Ray).
-	UV_NO_CACHE=1 uv pip compile --python-version 3.12 --output-file config/ray-deps.lock config/ray-deps.txt
+	@tmp=$$(mktemp); \
+	UV_NO_CACHE=1 uv pip compile --python-version 3.12 --output-file "$$tmp" config/ray-deps.txt >/dev/null; \
+	mv -f "$$tmp" config/ray-deps.lock
 
 lock-astroai-lab: ## regenerate config/astroai-lab.lock from the SHA pin in config/astroai-lab.in.
-	uv pip compile --python-version 3.13 --output-file config/astroai-lab.lock config/astroai-lab.in
+	@tmp=$$(mktemp); \
+	uv pip compile --python-version 3.13 --output-file "$$tmp" config/astroai-lab.in >/dev/null; \
+	mv -f "$$tmp" config/astroai-lab.lock
 
 lock-check: ## fail CI if either lockfile's package body drifts from its source. The uv-generated header (3 lines) is stripped before comparison so output paths in the embedded command line don't cause false-positive drift.
-	UV_NO_CACHE=1 uv pip compile --python-version 3.12 --output-file /tmp/__ray.lock config/ray-deps.txt
-	tail -n +4 /tmp/__ray.lock > /tmp/__ray.body
-	tail -n +4 config/ray-deps.lock > /tmp/__ray.committed.body
-	cmp -s /tmp/__ray.body /tmp/__ray.committed.body || { echo "ray-deps.lock drift — run make lock-ray" >&2; exit 1; }
-	uv pip compile --python-version 3.13 --output-file /tmp/__lab.lock config/astroai-lab.in
-	tail -n +4 /tmp/__lab.lock > /tmp/__lab.body
-	tail -n +4 config/astroai-lab.lock > /tmp/__lab.committed.body
-	cmp -s /tmp/__lab.body /tmp/__lab.committed.body || { echo "astroai-lab.lock drift — run make lock-astroai-lab" >&2; exit 1; }
-	@echo "lockfile package bodies match their source constraints"
+	@# Compile into fresh mktemp paths — uv treats an existing --output-file as a
+	@# preference lock, so reusing /tmp/__ray.lock across runs hides real drift.
+	@tmp_ray=$$(mktemp); tmp_lab=$$(mktemp); \
+	UV_NO_CACHE=1 uv pip compile --python-version 3.12 --output-file "$$tmp_ray" config/ray-deps.txt >/dev/null; \
+	tail -n +4 "$$tmp_ray" > /tmp/__ray.body; \
+	tail -n +4 config/ray-deps.lock > /tmp/__ray.committed.body; \
+	rm -f "$$tmp_ray"; \
+	cmp -s /tmp/__ray.body /tmp/__ray.committed.body || { echo "ray-deps.lock drift — run make lock-ray" >&2; exit 1; }; \
+	uv pip compile --python-version 3.13 --output-file "$$tmp_lab" config/astroai-lab.in >/dev/null; \
+	tail -n +4 "$$tmp_lab" > /tmp/__lab.body; \
+	tail -n +4 config/astroai-lab.lock > /tmp/__lab.committed.body; \
+	rm -f "$$tmp_lab"; \
+	cmp -s /tmp/__lab.body /tmp/__lab.committed.body || { echo "astroai-lab.lock drift — run make lock-astroai-lab" >&2; exit 1; }; \
+	echo "lockfile package bodies match their source constraints"
 
 test-local: ## verify session images (parallel)
 	@fails=0; pids=(); \

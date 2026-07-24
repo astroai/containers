@@ -88,9 +88,12 @@ cp "${LAB_LOCK}.bak" "$LAB_LOCK"
 
 # Sanity sweep on the restored (clean) tree: gate must pass cleanly.
 echo "== Sanity check on restored (clean) lockfiles =="
-if ! make -s lock-check >/dev/null 2>&1; then
+if ! make -s lock-check >/tmp/lock-check-sanity.out 2>&1; then
     echo "ERROR: make -s lock-check failed even after explicit restore" >&2
     echo "Restoration or the clean baseline regressed." >&2
+    echo "----- make -s lock-check output -----" >&2
+    cat /tmp/lock-check-sanity.out >&2 || true
+    echo "----- end -----" >&2
     exit 1
 fi
 echo "OK: gate passes on clean baseline"
